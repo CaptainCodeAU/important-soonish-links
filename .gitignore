@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# SQLite WAL/SHM (transient files — the .db itself IS committed)
+*.db-shm
+*.db-wal
+
+# Backups (generated, not source)
+db_backups/
+
+# Plans (Claude Code working files)
+Plans/
