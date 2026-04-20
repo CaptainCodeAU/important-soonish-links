@@ -1,8 +1,10 @@
 # SPEC.md — Important Soonish Links (Chrome Extension)
 
-Version: 0.1.0-draft  
-Date: 2026-04-20  
+Version: 0.2.0-draft
+Date: 2026-04-20
 Status: Pre-implementation — review Open Questions before proceeding.
+
+**Changelog from 0.1.0-draft:** UI framework switched from React 18 to Svelte 5 (runes). Zustand removed (replaced by rune-based stores). Tailwind removed (replaced by scoped `<style>` blocks referencing CSS custom properties). List virtualization deferred from MVP to v2. All other sections — data model, storage, design tokens, accessibility, microcopy, user flows — unchanged.
 
 ---
 
@@ -32,8 +34,8 @@ Status: Pre-implementation — review Open Questions before proceeding.
 
 ### Product Identity
 
-**Name:** Important Soonish Links  
-**Type:** Chrome Extension (Manifest V3)  
+**Name:** Important Soonish Links
+**Type:** Chrome Extension (Manifest V3)
 **Tagline (verbatim):**
 
 > A chrome extension for saving important links you absolutely intend to read. Past-you had plans. The works. Present-you is lost in a rabbit hole about something else entirely. Not today. Definitely not today. Right after this one other thing. And after those tabs are dealt with. Soonish. That much is certain.
@@ -136,6 +138,8 @@ Left-to-right:
 - Clicking outside the strip collapses it (no change).
 - `prefers-reduced-motion`: skip animation; show/hide instantly.
 
+**Implementation note:** Svelte's built-in `transition:` directive (e.g. `transition:slide` or a custom transition) handles both the expand/collapse animation and the reduced-motion fallback without additional libraries.
+
 **Palette:** Notion's 10-color set (see §8 for complete hex values):
 Default, Gray, Brown, Orange, Yellow, Green, Blue, Purple, Pink, Red.
 
@@ -184,7 +188,7 @@ Tag accent colors are drawn from the Notion palette (see §8). They are delibera
 **Interaction:**
 - Unset tag: outline `Tag` icon (Lucide `Tag`, 14px). Click → dropdown.
 - Set tag: pill renders. Click → dropdown reopens (for change or clear).
-- Dropdown: list of 6 tags + a "No tag" clear option at the top. Each item shows the tag label and a small color dot. 200ms fade-in animation.
+- Dropdown: list of 6 tags + a "No tag" clear option at the top. Each item shows the tag label and a small color dot. 200ms fade-in animation (Svelte `transition:fade`).
 
 **MVP:** Tags are fixed (predefined set, no user editing). v2 recommendation: make tags user-editable (rename, recolor, add/remove) — justified because the fixed set covers ~90% of use cases for launch and user-editable tags add significant settings/state complexity that is better validated post-launch.
 
@@ -216,6 +220,8 @@ A link can be marked as read without deletion. This is MVP.
 ### 2.9 Settings Panel
 
 Clicking the gear icon transitions the popup to a **settings view** via a horizontal slide animation (200ms ease-out; `prefers-reduced-motion`: instant swap). A `←` back arrow in the settings header returns to the main list.
+
+**Implementation note:** Use Svelte's `transition:fly={{ x: 380, duration: 200 }}` on the settings view and the list view for paired slide transitions. Svelte transitions respect `prefers-reduced-motion` automatically when using the built-in transition modules.
 
 **Settings sections:**
 
@@ -283,6 +289,7 @@ Clicking the gear icon transitions the popup to a **settings view** via a horizo
 | 18 | Badge counter on extension icon | **MVP** | Trivial to implement via `chrome.action.setBadgeText`; settings toggle |
 | 19 | Mark as read / archive | **MVP** | Strongly recommended; provides positive closure without deletion |
 | 20 | Reading time estimate | **Considered, excluded** | Requires content fetch (adds permission complexity) or approximation (unreliable). v2 candidate |
+| 21 | List virtualization | **v2** | Deferred — typical user library (tens to low hundreds of links) renders fine without it. Revisit if real usage shows jank. |
 
 ---
 
@@ -348,54 +355,67 @@ No host permissions. No `<all_urls>`. The extension never reads page content —
 
 | Layer | Technology | Justification |
 |---|---|---|
-| UI framework | React 18 | Interaction complexity (color picker, tag dropdown, view transitions, list virtualization, modals, toasts) warrants a component model |
-| Language | TypeScript | Type-safe data model, color/tag constants, storage layer |
-| Build tool | Vite + `@crxjs/vite-plugin` | Fast HMR for extension development; first-class MV3 support |
-| Styling | Tailwind CSS + CSS custom properties | Tailwind for velocity; CSS variables for the palette so it works outside Tailwind too (e.g., in animations or canvas) |
-| State | Zustand | Simple, minimal boilerplate; fits a single popup's state needs |
-| Testing | Vitest + React Testing Library | Consistent with the Vite ecosystem; RTL for component tests |
-| List virtualization | `@tanstack/react-virtual` | Lightweight, framework-agnostic; activates above 150 items |
-| Drag-to-reorder (v2) | `@dnd-kit/core` | Tree-shakable, accessible, keyboard-friendly |
+| UI framework | **Svelte 5 (runes)** | Compiled output produces a meaningfully smaller bundle than React + ReactDOM — directly relevant for a popup that mounts on every open. Runes (`$state`, `$derived`, `$effect`) give fine-grained reactivity without a virtual DOM. Component count (~15) is small enough that the migration from React syntax is mechanical. |
+| Language | TypeScript | Type-safe data model, color/tag constants, storage layer. Svelte files use `<script lang="ts">`; template type-checking via `svelte-check`. |
+| Build tool | Vite + `@crxjs/vite-plugin` + `@sveltejs/vite-plugin-svelte` | Fast HMR for extension development; first-class MV3 support; Svelte plugin is maintained by the Svelte core team. |
+| Styling | **CSS custom properties + Svelte scoped `<style>` blocks** | No Tailwind. The Notion palette lives in `styles/tokens.css` as CSS variables (single source of truth, already designed as such); components reference those vars in per-component scoped styles. Svelte scopes `<style>` blocks by default, so class-name collisions are a non-issue. Removing Tailwind saves bundle weight, one build step, and one layer of indirection for a popup of this size. |
+| State | **Svelte 5 runes** (no external store library) | `$state` in a `.svelte.ts` module replaces Zustand slices. `$derived` replaces selectors. Cross-component reactivity is automatic. One less dependency; one less mental model. |
+| Testing | Vitest + `@testing-library/svelte` | Consistent with the Vite ecosystem; `@testing-library/svelte` mirrors the React Testing Library API for component tests. |
+| Type-checking templates | `svelte-check` | Catches template-level type errors that `tsc --noEmit` alone misses. Runs in CI as part of `build`. |
+| Drag-to-reorder (v2) | `svelte-dnd-action` | Small, MIT-licensed, good keyboard support. Standard choice in the Svelte ecosystem. |
 
-### 4.3 Styling: Tailwind Configuration
+**Libraries explicitly NOT used:**
+- No Tailwind, no PostCSS plugins beyond what Vite provides by default.
+- No Zustand, Redux, or other state library — runes cover it.
+- No list virtualization library for MVP. If added in v2, use `@tanstack/svelte-virtual`.
+- No UI component library. All ~15 components are hand-built against the design tokens.
 
-Define the Notion palette as Tailwind theme extensions, sourced from CSS variables declared on `:root` and `[data-theme="dark"]`:
+### 4.3 Styling: CSS Custom Properties + Scoped Styles
 
-```css
-/* In styles/tokens.css */
-:root {
-  --color-default-solid:    #9B9A97;
-  --color-default-bg:       #F1F1EF;
-  /* ... one block per color, see §8 */
-}
-[data-theme="dark"] {
-  --color-default-bg:       #2F2F2F;
-  /* ... */
-}
+The palette, spacing scale, shape tokens, and motion tokens all live in `src/styles/tokens.css` as CSS custom properties declared on `:root` (light mode) and `[data-theme="dark"]` (dark mode). See §8 for the complete token set.
+
+Components consume these tokens inside their own `<style>` block, which Svelte scopes to that component automatically:
+
+```svelte
+<!-- src/components/LinkCard.svelte -->
+<script lang="ts">
+  import type { SavedLink } from '../types';
+  let { link }: { link: SavedLink } = $props();
+</script>
+
+<div class="card" data-color={link.color}>
+  <!-- ...card contents... -->
+</div>
+
+<style>
+  .card {
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    min-height: 56px;
+    background: var(--color-card-bg);
+    transition: box-shadow var(--duration-fast) var(--ease-out);
+  }
+  .card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .card[data-color="blue"]   { --color-card-bg: var(--color-blue-bg);   }
+  .card[data-color="green"]  { --color-card-bg: var(--color-green-bg);  }
+  /* ...one row per color — or generated via an inline style binding... */
+</style>
 ```
 
-```ts
-// tailwind.config.ts
-export default {
-  content: ["./src/**/*.{ts,tsx}"],
-  darkMode: ["class", "[data-theme='dark']"],
-  theme: {
-    extend: {
-      colors: {
-        notion: {
-          default:  { solid: "var(--color-default-solid)", bg: "var(--color-default-bg)" },
-          // ...
-        }
-      },
-      fontFamily: {
-        display: ["Instrument Serif", "Georgia", "serif"],
-        ui:      ["Inter", "system-ui", "sans-serif"],
-        mono:    ["JetBrains Mono", "monospace"],
-      },
-    },
-  },
-};
+For the card's color-driven background, the cleanest pattern is a `style:` directive binding the CSS var directly, so we don't need a rule per color:
+
+```svelte
+<div
+  class="card"
+  style:--color-card-bg="var(--color-{link.color}-bg)"
+>
 ```
+
+**Global styles** (reset, body defaults, scrollbar styling, `@font-face` declarations) live in `src/styles/global.css` and are imported once from `popup/main.ts`.
+
+**Shared utility classes** — if any patterns genuinely repeat across many components (e.g. `.pill`, `.visually-hidden`), define them in `global.css`. Err on the side of keeping styles local to the component.
 
 ---
 
@@ -417,35 +437,34 @@ important-soonish-links/
 │           └── JetBrainsMono-Variable.woff2
 ├── src/
 │   ├── popup/
-│   │   ├── index.html          # Popup HTML entry — loads main.tsx
-│   │   └── main.tsx            # React root mount, theme initializer
+│   │   ├── index.html          # Popup HTML entry — loads main.ts
+│   │   └── main.ts             # Mounts App.svelte, initializes theme, imports global.css
 │   ├── background/
-│   │   └── index.ts            # Service worker: context menu, badge updates
+│   │   └── index.ts            # Service worker: context menu, badge updates (framework-agnostic)
 │   ├── content/                # (empty for MVP — reserved for future content scripts)
 │   ├── components/
-│   │   ├── App.tsx             # Root component: view router (list ↔ settings)
-│   │   ├── Header.tsx          # Header row: + button, wordmark, gear icon
-│   │   ├── AddButton.tsx       # + button with caret dropdown and manual-entry form
-│   │   ├── SearchBar.tsx       # Debounced search input with clear button
-│   │   ├── FilterRow.tsx       # Color chip + tag chip filter strip
-│   │   ├── LinkList.tsx        # Virtualized list of LinkCard components
-│   │   ├── LinkCard.tsx        # Individual link card (all states)
-│   │   ├── ColorPicker.tsx     # Expanding color swatch strip
-│   │   ├── TagDropdown.tsx     # Tag selection dropdown
-│   │   ├── Toast.tsx           # Auto-dismissing toast with optional Undo action
-│   │   ├── ToastContainer.tsx  # Manages toast queue and positioning
-│   │   ├── ConfirmDialog.tsx   # Generic modal confirmation dialog
-│   │   ├── SettingsView.tsx    # Full settings panel (all settings sections)
-│   │   ├── EmptyState.tsx      # Empty list state with on-voice copy
-│   │   └── FaviconImage.tsx    # Favicon with fallback rendering
-│   ├── hooks/
-│   │   ├── useLinks.ts         # Links CRUD operations from Zustand store
-│   │   ├── useSearch.ts        # Fuzzy search logic, debounced
-│   │   ├── useFilters.ts       # Color and tag filter state
-│   │   ├── useTheme.ts         # Theme detection and override logic
-│   │   └── useToast.ts         # Imperative toast trigger
+│   │   ├── App.svelte          # Root component: view router (list ↔ settings)
+│   │   ├── Header.svelte       # Header row: + button, wordmark, gear icon
+│   │   ├── AddButton.svelte    # + button with caret dropdown and manual-entry form
+│   │   ├── SearchBar.svelte    # Debounced search input with clear button
+│   │   ├── FilterRow.svelte    # Color chip + tag chip filter strip
+│   │   ├── LinkList.svelte     # List of LinkCard components (no virtualization in MVP)
+│   │   ├── LinkCard.svelte     # Individual link card (all states)
+│   │   ├── ColorPicker.svelte  # Expanding color swatch strip (uses transition:)
+│   │   ├── TagDropdown.svelte  # Tag selection dropdown (uses transition:fade)
+│   │   ├── Toast.svelte        # Auto-dismissing toast with optional Undo action
+│   │   ├── ToastContainer.svelte  # Manages toast queue and positioning
+│   │   ├── ConfirmDialog.svelte   # Generic modal confirmation dialog
+│   │   ├── SettingsView.svelte    # Full settings panel (all settings sections)
+│   │   ├── EmptyState.svelte      # Empty list state with on-voice copy
+│   │   └── FaviconImage.svelte    # Favicon with fallback rendering
 │   ├── store/
-│   │   └── index.ts            # Zustand store: links[], settings, transient UI state
+│   │   ├── links.svelte.ts     # Links state + CRUD (replaces Zustand slice)
+│   │   ├── settings.svelte.ts  # Settings state + persistence
+│   │   ├── filters.svelte.ts   # Active color/tag filter selections
+│   │   ├── search.svelte.ts    # Debounced query; derived filtered list
+│   │   ├── theme.svelte.ts     # Theme detection + prefers-reduced-motion
+│   │   └── toasts.svelte.ts    # Toast queue with imperative push()
 │   ├── storage/
 │   │   ├── index.ts            # Public API: readLinks, writeLinks, readSettings, writeSettings
 │   │   ├── migrations.ts       # Schema migration functions keyed by version number
@@ -459,17 +478,23 @@ important-soonish-links/
 │   ├── types/
 │   │   └── index.ts            # All TypeScript interfaces and type exports
 │   └── styles/
-│       ├── tokens.css          # CSS custom properties (palette, radius, spacing)
+│       ├── tokens.css          # CSS custom properties (palette, radius, spacing, motion)
 │       ├── fonts.css           # @font-face declarations
-│       └── global.css          # Base reset, body defaults, scrollbar styling
+│       └── global.css          # Base reset, body defaults, scrollbar styling, shared utility classes
 ├── manifest.json
 ├── vite.config.ts
-├── tailwind.config.ts
+├── svelte.config.js            # Svelte compiler options (runes mode, preprocessors)
 ├── tsconfig.json
 ├── package.json
 ├── SPEC.md                     # This file
 └── README.md
 ```
+
+**Notes on the restructure from v0.1.0:**
+- `hooks/` folder is gone. Each former hook becomes a `.svelte.ts` module in `store/`. Components read/write reactive state directly; no `useX()` wrapper needed because runes already provide fine-grained reactivity.
+- `tailwind.config.ts` is gone.
+- `svelte.config.js` is added for compiler options (runes mode must be explicitly enabled in Svelte 5 if not using all-runes-everywhere project config).
+- All `.tsx` files become `.svelte`. Non-component TypeScript (`lib/`, `storage/`, `types/`, `background/`) is unchanged.
 
 ---
 
@@ -561,7 +586,7 @@ export const DEFAULT_LINK_COLOR: ColorId = "default";
 
 ### 7.1 Storage Abstraction
 
-All reads and writes go through `src/storage/index.ts`. No component or hook calls `chrome.storage.*` directly.
+All reads and writes go through `src/storage/index.ts`. No component or store module calls `chrome.storage.*` directly.
 
 ```ts
 // src/storage/index.ts (interface contract)
@@ -629,6 +654,41 @@ Strategy:
 
 The service worker registers the context menu and handles `chrome.contextMenus.onClicked`. It writes the new link directly to storage, then dispatches a message to the popup (if open) via `chrome.runtime.sendMessage` so the list refreshes. The popup listens via `chrome.runtime.onMessage`.
 
+### 7.6 Store ↔ Storage Integration
+
+Rune-based stores in `src/store/` are the reactive layer; they do not replace the storage abstraction. Each store module:
+1. On first subscribe (or on explicit `load()` call from `App.svelte` mount), reads from storage and populates its `$state`.
+2. Exposes imperative functions (`addLink`, `updateLink`, `deleteLink`, etc.) that mutate `$state` in memory *and* call the storage layer to persist.
+3. Writes are fire-and-forget at the call site but catch storage errors internally and push a toast.
+
+```ts
+// src/store/links.svelte.ts (sketch)
+import type { SavedLink } from '../types';
+import { readLinks, writeLinks } from '../storage';
+import { pushToast } from './toasts.svelte';
+import { COPY } from '../lib/copy';
+
+export const linksState = $state({
+  items: [] as SavedLink[],
+  loaded: false,
+});
+
+export async function loadLinks() {
+  linksState.items = await readLinks();
+  linksState.loaded = true;
+}
+
+export async function addLink(link: SavedLink) {
+  const next = [link, ...linksState.items];
+  linksState.items = next;
+  try {
+    await writeLinks(next);
+  } catch {
+    pushToast(COPY.STORAGE_WRITE_FAILED);
+  }
+}
+```
+
 ---
 
 ## 8. Design System
@@ -665,6 +725,8 @@ export const NOTION_PALETTE: Record<ColorId, NotionColorTokens> = {
   red:     { solid: "#E03E3E", lightBg: "#FBE4E4", darkBg: "#3E1414", label: "Red"      },
 };
 ```
+
+These values are **mirrored** into `styles/tokens.css` as CSS custom properties (`--color-blue-solid`, `--color-blue-bg`, etc.) so that templates and scoped `<style>` blocks can reference them directly without importing the TS constant. Keep the two in sync via a code-gen script or manual care — the TS version is authoritative.
 
 > **Implementation note:** `default` and `gray` share the same tokens — `default` is the "no color" state; `gray` is an explicit gray selection. On the color picker, `default` renders as a neutral white/gray outline swatch labeled "None" or "Default."
 
@@ -723,7 +785,17 @@ All fonts are bundled under `public/assets/fonts/` and loaded via `@font-face` i
 }
 ```
 
-**Type scale (popup-specific, Tailwind-compatible):**
+**Font family tokens** (defined in `tokens.css` for use in component styles):
+
+```css
+:root {
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-ui:      "Inter", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+}
+```
+
+**Type scale (popup-specific):**
 
 | Use | Size | Weight | Font | Color |
 |---|---|---|---|---|
@@ -769,14 +841,14 @@ Base unit: 4px. All spacing values are multiples of 4.
 ### 8.7 Motion Tokens
 
 ```css
---duration-fast:   150ms
---duration-base:   200ms
---duration-slow:   300ms
---ease-out:        cubic-bezier(0.0, 0.0, 0.2, 1.0)
---ease-in-out:     cubic-bezier(0.4, 0.0, 0.2, 1.0)
+--duration-fast:   150ms;
+--duration-base:   200ms;
+--duration-slow:   300ms;
+--ease-out:        cubic-bezier(0.0, 0.0, 0.2, 1.0);
+--ease-in-out:     cubic-bezier(0.4, 0.0, 0.2, 1.0);
 ```
 
-All transitions: `@media (prefers-reduced-motion: reduce)` overrides to `transition: none` or `animation: none`.
+All transitions: `@media (prefers-reduced-motion: reduce)` overrides to `transition: none` or `animation: none`. Svelte's built-in `transition:` directives respect this media query automatically.
 
 ### 8.8 Light / Dark Mode Tokens
 
@@ -847,7 +919,7 @@ Optional: a small, tasteful line-art illustration (an hourglass, a bookmark, or 
   - Filter chips: `role="group"` containing `role="checkbox"` chips.
   - Settings back button: `aria-label="Back to links"`.
 - **Color contrast:** Verify all text on all card background tints meets WCAG AA (4.5:1 for normal text, 3:1 for large text). The Notion tints are pastel — check programmatically with a contrast tool during implementation. Use `--color-text-primary` on tinted backgrounds, not the solid color.
-- **`prefers-reduced-motion`:** Apply `transition: none` and `animation: none` on all animated elements when this media query is active. Store detection in `useTheme` hook and apply class/data attribute to `<html>`.
+- **`prefers-reduced-motion`:** Apply `transition: none` and `animation: none` on all animated elements when this media query is active. The `theme.svelte.ts` store exposes a reactive `reducedMotion` flag for component-level conditional logic; Svelte's built-in transitions respect the media query by default.
 - **Screen reader:** Announce dynamic list changes (add, delete, filter) using an `aria-live="polite"` region off-screen.
 
 ---
@@ -869,13 +941,14 @@ Optional: a small, tasteful line-art illustration (an hourglass, a bookmark, or 
 
 ## 11. Performance
 
-- **Virtualization:** Use `@tanstack/react-virtual` for the link list. Activate unconditionally (the overhead is negligible; it prevents jank at scale). Visible window: ~6–8 cards.
-- **Search debounce:** 120ms. The search function runs synchronously on the filtered list in memory — no async needed for under ~5,000 links.
+- **Virtualization:** **Deferred to v2.** The MVP renders all link cards. Typical libraries (tens to a few hundred links) render without perceptible jank given the card's small DOM footprint. Revisit if real-world usage or perf profiling shows otherwise. If re-added, use `@tanstack/svelte-virtual`.
+- **Search debounce:** 120ms. The search function runs synchronously on the in-memory array — no async needed for under ~5,000 links.
 - **Fuzzy search implementation:** A lightweight in-house implementation (no Fuse.js dependency unless needed) — score links by whether the query appears as a substring in title and URL, ranked by position. Sufficient for MVP.
-- **Settings view:** Lazy-loaded via React `Suspense` + `lazy()`. The settings panel is rarely opened on every popup open.
+- **Settings view:** Rendered conditionally in `App.svelte` (simple `{#if view === 'settings'}` guard). Svelte's compilation model means conditional branches are only instantiated when their condition is true, so code-splitting the settings view is not necessary for MVP — the popup bundle is already small.
 - **Favicon fetches:** Favicons are stored from the tab's `favIconUrl` at save time. No re-fetching after save. `favIconUrl` may be a `data:` URI or an `https://` URL; store as-is.
-- **Popup open-to-interactive target:** < 150ms. Achieved by: small bundle, no CDN fonts, no network requests on open, storage read on mount (async but non-blocking for initial render).
-- **Storage reads:** Single read on popup mount populates the Zustand store. All subsequent operations are in-memory + async write. No polling.
+- **Popup open-to-interactive target:** < 150ms. Achieved by: small compiled Svelte bundle, no CDN fonts, no network requests on open, storage read on mount (async but non-blocking for initial render).
+- **Storage reads:** Single read on popup mount populates the rune-based stores. All subsequent operations are in-memory + async write. No polling.
+- **Bundle size target:** < 60KB gzipped for the popup bundle (excluding fonts). Track this as part of `npm run build` output.
 
 ---
 
@@ -888,6 +961,8 @@ Optional: a small, tasteful line-art illustration (an hourglass, a bookmark, or 
 | `storage/index.ts` | Read/write round-trips, migration triggers, key namespacing |
 | `storage/migrations.ts` | Each migration function transforms data correctly |
 | `storage/sync.ts` | Fallback from sync to local on quota error |
+| `store/links.svelte.ts` | CRUD operations mutate state and persist via storage; error paths push toasts |
+| `store/filters.svelte.ts` | Derived filtered list matches expected combinations (color OR, tag OR, across AND) |
 | `lib/colors.ts` | All 10 colors have valid hex values for all 3 variants |
 | `lib/tags.ts` | All 6 tags have required fields |
 | `lib/search.ts` | Fuzzy matching: exact match, partial match, case-insensitive, no match, URL vs title |
@@ -896,7 +971,7 @@ Optional: a small, tasteful line-art illustration (an hourglass, a bookmark, or 
 | Import merge logic | Duplicates skipped; new links added |
 | Import replace logic | All existing links cleared; new links set |
 
-### 12.2 Component Tests (React Testing Library)
+### 12.2 Component Tests (`@testing-library/svelte`)
 
 | Component | States to test |
 |---|---|
@@ -941,6 +1016,7 @@ Optional: a small, tasteful line-art illustration (an hourglass, a bookmark, or 
 | Keyboard nav | Tab to card → ↑↓ navigate → Enter opens link → Delete triggers confirm |
 | Context menu | Right-click a link on a page → "Save to Important Soonish Links" → card saved |
 | Keyboard shortcut | Press `Cmd/Ctrl+Shift+L` → popup opens |
+| Reduced motion | Enable OS reduced-motion → no animations on color picker expand, settings slide, toasts |
 
 ---
 
@@ -951,30 +1027,31 @@ Optional: a small, tasteful line-art illustration (an hourglass, a bookmark, or 
 ```json
 {
   "scripts": {
-    "dev":     "vite dev",
-    "build":   "vite build",
-    "package": "npm run build && cd dist && zip -r ../important-soonish-links.zip . && cd ..",
-    "test":    "vitest",
-    "typecheck": "tsc --noEmit"
+    "dev":       "vite dev",
+    "build":     "svelte-check && vite build",
+    "package":   "npm run build && cd dist && zip -r ../important-soonish-links.zip . && cd ..",
+    "test":      "vitest",
+    "typecheck": "svelte-check && tsc --noEmit"
   }
 }
 ```
 
 - `npm run dev` — starts Vite with HMR; load `dist/` as an unpacked extension in `chrome://extensions`.
-- `npm run build` — produces `dist/` ready to load as unpacked extension.
+- `npm run build` — runs `svelte-check` for template type-safety, then produces `dist/` ready to load as unpacked extension.
 - `npm run package` — produces `important-soonish-links.zip` for Chrome Web Store submission.
+- `npm run typecheck` — template + TS check, run in CI on every PR.
 
 ### 13.2 Vite Configuration
 
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { crx } from "@crxjs/vite-plugin";
 import manifest from "./manifest.json";
 
 export default defineConfig({
-  plugins: [react(), crx({ manifest })],
+  plugins: [svelte(), crx({ manifest })],
   build: {
     outDir: "dist",
     emptyOutDir: true,
@@ -982,9 +1059,23 @@ export default defineConfig({
 });
 ```
 
-### 13.3 TypeScript Configuration
+### 13.3 Svelte Configuration
 
-Strict mode enabled. `target: "ES2022"`, `module: "ESNext"`, `lib: ["DOM", "ES2022"]`.
+```js
+// svelte.config.js
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+
+export default {
+  preprocess: vitePreprocess(),
+  compilerOptions: {
+    runes: true, // Opt into Svelte 5 runes mode project-wide
+  },
+};
+```
+
+### 13.4 TypeScript Configuration
+
+Strict mode enabled. `target: "ES2022"`, `module: "ESNext"`, `lib: ["DOM", "ES2022"]`. Ensure `"moduleResolution": "bundler"` and include Svelte's generated type shims if needed.
 
 ---
 
@@ -1038,7 +1129,7 @@ Strict mode enabled. `target: "ES2022"`, `module: "ESNext"`, `lib: ["DOM", "ES20
 
 1. User hovers a card — `×` button becomes visible.
 2. User clicks `×`.
-3. Confirmation modal: *"Delete this link? Past-you won't mind."*
+3. Confirmation modal appears: *"Delete this link? Past-you won't mind."*
 4. User clicks **Delete**.
 5. Modal closes. Card is removed. Toast appears: *"Link removed."* with an **Undo** button.
 6. If user clicks **Undo** within 5 seconds: card is restored at original position, toast dismisses.
@@ -1171,26 +1262,32 @@ export const COPY = {
 
 The following items are genuinely ambiguous and should be resolved before full implementation. Proceeding with the documented defaults is acceptable for a prototype.
 
-1. **Delete flow: Pattern A vs B.**  
+1. **Delete flow: Pattern A vs B.**
    This spec defaults to Pattern A (confirmation dialog + undo toast). Pattern B (drop the dialog; rely solely on the undo toast) is the modern standard (Gmail, iOS). It is cleaner and faster. Consider switching to B after an initial usability test — the dialog adds friction for a recoverable action.
 
-2. **User-editable tags in v2.**  
+2. **User-editable tags in v2.**
    The fixed-set approach is recommended for MVP. For v2, the question is whether the tag list is stored in settings (user can rename/recolor/add/remove) or hardcoded. Recommendation: store tags in settings as a `Tag[]` alongside `AppSettings`; pre-populate with defaults on first run. This is additive and non-breaking.
 
-3. **Font licensing verification.**  
+3. **Font licensing verification.**
    Instrument Serif, Inter, and JetBrains Mono are all published under OFL 1.1, which permits bundling and redistribution. Verify current license status of each before Chrome Web Store submission. OFL fonts cannot be sold standalone but redistribution as part of an application is permitted.
 
-4. **Badge counter default: on or off.**  
+4. **Badge counter default: on or off.**
    This spec defaults to **on**. Some users find badge counts on browser icons visually noisy. Consider defaulting to off if user research suggests this.
 
-5. **Context menu: save link text vs page title for right-click-on-link saves.**  
+5. **Context menu: save link text vs page title for right-click-on-link saves.**
    When the user right-clicks a hyperlink (not the page), the "title" to save is ambiguous: it could be the link's visible text, the page title of the linked page (unknown without a fetch), or the hostname. Recommendation: use the link's anchor text if non-empty, otherwise fall back to the hostname. Document this behavior in the README.
 
-6. **Mark-as-read card treatment: bottom of list vs collapsed section.**  
+6. **Mark-as-read card treatment: bottom of list vs collapsed section.**
    This spec recommends moving read cards to the bottom. An alternative is a collapsible "Read" section below the unread list, which provides clearer visual separation. Revisit after seeing the design in practice.
 
-7. **Minimum Chrome version.**  
+7. **Minimum Chrome version.**
    MV3 requires Chrome 88+; `@crxjs/vite-plugin` and the storage APIs used here work on Chrome 96+. Set `minimum_chrome_version: "96"` in manifest.json or higher if specific APIs require it. Verify before submission.
+
+8. **Colors TS constant vs CSS tokens — two sources of truth.**
+   The Notion palette is expressed in both `src/lib/colors.ts` (for code that needs to read hex values) and `src/styles/tokens.css` (for CSS consumption). Keeping these in sync is a maintenance cost. Options: (a) treat TS as authoritative and write a small codegen script that emits `tokens.css`, (b) treat CSS as authoritative and read `getComputedStyle(document.documentElement)` in TS at runtime, (c) accept the duplication and guard with a unit test that compares them. Recommendation: (a) if the palette grows; (c) for MVP.
+
+9. **Virtualization threshold.**
+   Deferred to v2. If re-added, measure before choosing a threshold — the original 150-item number is a guess. Profile against a realistic synthetic library (5k links) before committing.
 
 ---
 
@@ -1204,3 +1301,4 @@ The following items are genuinely ambiguous and should be resolved before full i
 - **`chrome.storage.sync` only for cross-device sync** — no third-party sync service.
 - **Simplicity over feature sprawl.** A smaller set of features executed with polish beats a long list executed poorly. When in doubt, exclude.
 - **Respect user data.** No guessing at user intent. No auto-deletions. Mutations are always reversible or confirmed.
+- **Bundle discipline.** Popup bundle under 60KB gzipped (excl. fonts). Every new dependency must justify its weight. Prefer platform primitives and Svelte built-ins over libraries.
