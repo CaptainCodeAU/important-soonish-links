@@ -1,0 +1,28 @@
+{
+  "name": "important-soonish-links",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "svelte-check && vite build",
+    "package": "pnpm run build && cd dist && zip -r ../important-soonish-links.zip . && cd ..",
+    "test": "vitest",
+    "typecheck": "svelte-check && tsc --noEmit"
+  },
+  "dependencies": {
+    "svelte": "^5.55.4"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.4.0",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@testing-library/svelte": "^5.3.1",
+    "@types/chrome": "^0.1.40",
+    "jsdom": "^29.0.2",
+    "svelte-check": "^4",
+    "typescript": "^5",
+    "vite": "^8.0.9",
+    "vitest": "^4.1.4",
+    "vitest-chrome": "^0.1.0"
+  }
+}

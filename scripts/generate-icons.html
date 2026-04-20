@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Extension Icons</title></head>
+<body>
+<h2>Generating icons… check your Downloads folder.</h2>
+<script>
+const EMOJI = "🔖";
+const SIZES = [16, 32, 48, 128];
+
+SIZES.forEach(size => {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, size, size);
+  ctx.font = `${size * 0.85}px serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(EMOJI, size / 2, size / 2);
+
+  const a = document.createElement("a");
+  a.download = `icon${size}.png`;
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+});
+</script>
+</body>
+</html>
