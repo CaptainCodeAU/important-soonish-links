@@ -11,7 +11,7 @@
   let { link }: { link: SavedLink } = $props();
 
   function openLink(e: MouseEvent) {
-    const bg = !e.metaKey && !e.ctrlKey;
+    const bg = e.metaKey || e.ctrlKey;
     chrome.tabs.create({ url: link.url, active: !bg });
   }
 
