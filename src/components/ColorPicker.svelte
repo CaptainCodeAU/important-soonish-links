@@ -6,6 +6,10 @@
   let { value, onChange }: { value: ColorId; onChange: (c: ColorId) => void } = $props();
   let open = $state(false);
   let pickerEl: HTMLElement | undefined = $state();
+  let dotEl: HTMLElement | undefined = $state();
+  let swatchesEl: HTMLElement | undefined = $state();
+  let swatchStyle = $state("");
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
   function handleKeydown(e: KeyboardEvent, color: ColorId, idx: number) {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(color); }
@@ -14,7 +18,7 @@
   }
 
   function focusSwatch(idx: number) {
-    const swatches = pickerEl?.querySelectorAll<HTMLElement>("[role=radio]");
+    const swatches = swatchesEl?.querySelectorAll<HTMLElement>("[role=radio]");
     if (!swatches) return;
     const clamped = Math.max(0, Math.min(idx, swatches.length - 1));
     swatches[clamped]?.focus();
@@ -22,8 +26,33 @@
 
   function select(color: ColorId) { onChange(color); open = false; }
 
+  function scheduleClose() {
+    closeTimer = setTimeout(() => { open = false; }, 80);
+  }
+
+  function cancelClose() {
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = undefined; }
+  }
+
+  function openPicker() {
+    cancelClose();
+    if (!dotEl) return;
+    const rect = dotEl.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const panelHeight = 40;
+    if (spaceBelow < panelHeight) {
+      swatchStyle = `position:fixed;left:${rect.left}px;bottom:${window.innerHeight - rect.top + 4}px;`;
+    } else {
+      swatchStyle = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;`;
+    }
+    open = true;
+  }
+
   function handleWindowClick(e: MouseEvent) {
-    if (open && pickerEl && !pickerEl.contains(e.target as Node)) open = false;
+    if (open && pickerEl && !pickerEl.contains(e.target as Node) &&
+        swatchesEl && !swatchesEl.contains(e.target as Node)) {
+      open = false;
+    }
   }
 </script>
 
@@ -32,14 +61,24 @@
 <div class="color-wrap" bind:this={pickerEl}>
   <button
     class="dot"
+    bind:this={dotEl}
     style:background={NOTION_PALETTE[value].solid}
-    onmouseenter={() => (open = true)}
-    onfocus={() => (open = true)}
+    onmouseenter={openPicker}
+    onmouseleave={scheduleClose}
+    onfocus={openPicker}
     aria-label="Card color: {NOTION_PALETTE[value].label}"
     aria-expanded={open}
   ></button>
   {#if open}
-    <div class="swatches" role="radiogroup" aria-label="Card color">
+    <div
+      class="swatches"
+      role="radiogroup"
+      aria-label="Card color"
+      style={swatchStyle}
+      bind:this={swatchesEl}
+      onmouseenter={cancelClose}
+      onmouseleave={scheduleClose}
+    >
       {#each COLOR_IDS as color, i (color)}
         <button
           class="swatch"
@@ -70,15 +109,13 @@
   .dot:hover { transform: scale(1.2); }
   .dot:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
   .swatches {
-    position: absolute;
-    top: 20px; left: 0;
     display: flex; gap: 4px;
     background: var(--color-surface-base);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: 6px;
     box-shadow: var(--shadow-dropdown);
-    z-index: 50;
+    z-index: 1000;
   }
   .swatch {
     width: 20px; height: 20px;

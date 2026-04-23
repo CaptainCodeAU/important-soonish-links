@@ -7,11 +7,31 @@
   let { value, onChange }: { value?: TagId; onChange: (t: TagId | undefined) => void } = $props();
   let open = $state(false);
   let dropEl: HTMLElement | undefined = $state();
+  let triggerEl: HTMLElement | undefined = $state();
+  let menuEl: HTMLElement | undefined = $state();
+  let menuStyle = $state("");
 
   function select(tag?: TagId) { onChange(tag); open = false; }
 
+  function toggle() {
+    if (open) { open = false; return; }
+    if (!triggerEl) return;
+    const rect = triggerEl.getBoundingClientRect();
+    const menuHeight = (DEFAULT_TAGS.length + 1) * 30 + 8;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < menuHeight) {
+      menuStyle = `position:fixed;left:${rect.left}px;bottom:${window.innerHeight - rect.top + 4}px;`;
+    } else {
+      menuStyle = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;`;
+    }
+    open = true;
+  }
+
   function handleWindowClick(e: MouseEvent) {
-    if (open && dropEl && !dropEl.contains(e.target as Node)) open = false;
+    if (open && dropEl && !dropEl.contains(e.target as Node) &&
+        menuEl && !menuEl.contains(e.target as Node)) {
+      open = false;
+    }
   }
 </script>
 
@@ -20,7 +40,8 @@
 <div class="tag-wrap" bind:this={dropEl}>
   <button
     class="tag-trigger"
-    onclick={() => (open = !open)}
+    bind:this={triggerEl}
+    onclick={toggle}
     aria-label={value ? TAG_MAP[value].label : "Add tag"}
     aria-expanded={open}
     aria-haspopup="listbox"
@@ -39,7 +60,7 @@
     {/if}
   </button>
   {#if open}
-    <ul class="dropdown" role="listbox" aria-label="Card tag" transition:fade={{ duration: 200 }}>
+    <ul class="dropdown" role="listbox" aria-label="Card tag" style={menuStyle} bind:this={menuEl} transition:fade={{ duration: 200 }}>
       <li>
         <button role="option" aria-selected={value === undefined} onclick={() => select(undefined)} class="option">
           No tag
@@ -79,14 +100,12 @@
     font-size: 11px; font-weight: 500;
   }
   .dropdown {
-    position: absolute;
-    top: 24px; left: 0;
     min-width: 140px;
     background: var(--color-surface-base);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-dropdown);
-    z-index: 50;
+    z-index: 1000;
     list-style: none;
     padding: 4px;
     margin: 0;
