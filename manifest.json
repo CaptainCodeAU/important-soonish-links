@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Important Soonish Links",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAruIpgYpwrbUHTSTM7Lb9imNY6g0wHw9PkFyeotsjiGV3fuZ1QjzjYeTOOFYY4v0Lkbr1USAd8UfzDlySJJWCRxgcjdJuvNu629b/3U8tq7xw+tz63fxXYf60wddJypAycZtcQtbbKDJxUaXrutbqX2iCK6XoRQFj0lpdjSWm3C8fwOBtM6gJMAcXtRqtB9O7CMeN2gh4DapEIn7N+c85ATpE2n61PCe24pc5uecarN7YwK56YfeQy/9uP4f8OgJdiszUKCA9StzBvqwbB63Ag+nnoo3tb4i1N4wWLOlEMAm+A7H1p6paM7jR7haCMfkELKaQHgD038738xgUXjA3EwIDAQAB",
   "version": "1.0.0",
   "description": "A calm home for the links you absolutely intend to read. Soonish.",
   "minimum_chrome_version": "96",
