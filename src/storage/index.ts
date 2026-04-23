@@ -15,7 +15,8 @@ function getStorage(syncEnabled: boolean): chrome.storage.StorageArea {
 async function readRawLinks(storage: chrome.storage.StorageArea): Promise<SavedLink[]> {
   const result = await storage.get(null);
   if (result[STORAGE_KEYS.LINKS] !== undefined) {
-    return result[STORAGE_KEYS.LINKS] as SavedLink[];
+    const raw = result[STORAGE_KEYS.LINKS];
+    return Array.isArray(raw) ? raw : [];
   }
   return readChunked(result);
 }
@@ -47,20 +48,20 @@ export async function readLinks(): Promise<SavedLink[]> {
 
 export async function writeLinks(links: SavedLink[]): Promise<void> {
   const settings = await readSettings();
-  const json = JSON.stringify(links);
+  const plain = JSON.parse(JSON.stringify(links)) as SavedLink[];
 
   if (settings.syncEnabled) {
-    if (json.length > 7500) {
-      await writeChunked(links, settings);
+    if (JSON.stringify(plain).length > 7500) {
+      await writeChunked(plain, settings);
     } else {
       try {
-        await chrome.storage.sync.set({ [STORAGE_KEYS.LINKS]: links });
+        await chrome.storage.sync.set({ [STORAGE_KEYS.LINKS]: plain });
       } catch (err) {
-        await fallbackToLocal(links, settings);
+        await fallbackToLocal(plain, settings);
       }
     }
   } else {
-    await chrome.storage.local.set({ [STORAGE_KEYS.LINKS]: links });
+    await chrome.storage.local.set({ [STORAGE_KEYS.LINKS]: plain });
   }
 }
 
