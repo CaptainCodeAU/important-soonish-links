@@ -21,29 +21,44 @@
 </script>
 
 <div class="popup">
-  {#if view === "list"}
-    <div transition:fly={{ x: -380, duration: 200 }}>
-      <Header onSettings={() => (view = "settings")} />
-      <SearchBar />
-      <FilterRow />
-      <LinkList />
-    </div>
-  {:else}
-    <div transition:fly={{ x: 380, duration: 200 }}>
-      <SettingsView onBack={() => (view = "list")} />
-    </div>
-  {/if}
+  <div class="views">
+    {#if view === "list"}
+      <div class="view" transition:fly={{ x: -380, duration: 200 }}>
+        <Header onSettings={() => (view = "settings")} />
+        <SearchBar />
+        <FilterRow />
+        <LinkList />
+      </div>
+    {:else}
+      <div class="view" transition:fly={{ x: 380, duration: 200 }}>
+        <SettingsView onBack={() => (view = "list")} />
+      </div>
+    {/if}
+  </div>
   <ToastContainer />
 </div>
 
 <style>
   .popup {
     width: 380px;
-    max-height: 580px;
+    height: 580px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     background: var(--color-surface-base);
     position: relative;
+  }
+  .views {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .view {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 </style>
