@@ -3,7 +3,7 @@
   import { fade } from "svelte/transition";
   import { DEFAULT_TAGS } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
-  import { filtersState, toggleTag, clearTags } from "../store/filters.svelte";
+  import { filtersState, toggleTag, clearTags, setTagMatchMode } from "../store/filters.svelte";
   import { COPY } from "../lib/copy";
 
   let open = $state(false);
@@ -81,6 +81,25 @@
       onkeydown={onMenuKeydown}
       transition:fade={{ duration: 120 }}
     >
+      {#if count >= 2}
+        <div class="match-row" role="group" aria-label={COPY.FILTER_MATCH}>
+          <span class="match-label">{COPY.FILTER_MATCH}</span>
+          <div class="seg">
+            <button
+              class="seg-btn" class:on={filtersState.tagMatchMode === "any"}
+              onclick={() => setTagMatchMode("any")}
+              aria-pressed={filtersState.tagMatchMode === "any"}
+              title={COPY.FILTER_MATCH_ANY_TIP}
+            >{COPY.FILTER_MATCH_ANY}</button>
+            <button
+              class="seg-btn" class:on={filtersState.tagMatchMode === "all"}
+              onclick={() => setTagMatchMode("all")}
+              aria-pressed={filtersState.tagMatchMode === "all"}
+              title={COPY.FILTER_MATCH_ALL_TIP}
+            >{COPY.FILTER_MATCH_ALL}</button>
+          </div>
+        </div>
+      {/if}
       {#each DEFAULT_TAGS as tag (tag.id)}
         {@const on = filtersState.activeTags.has(tag.id)}
         <button class="opt" role="option" aria-selected={on} onclick={() => toggleTag(tag.id)}>
@@ -127,6 +146,27 @@
     z-index: 1000;
     padding: 4px;
   }
+  .match-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 4px 6px 6px;
+    margin-bottom: 4px; border-bottom: 1px solid var(--color-border);
+  }
+  .match-label { font-size: 11px; color: var(--color-text-muted); }
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .seg-btn {
+    padding: 2px 8px; font-size: 11px; font-weight: 500;
+    background: transparent; border: none;
+    color: var(--color-text-secondary); cursor: pointer;
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--color-border); }
+  .seg-btn.on { background: var(--color-accent); color: #fff; }
+  .seg-btn:not(.on):hover { background: var(--color-surface-overlay); }
+  .seg-btn:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -1px; }
   .opt {
     width: 100%;
     display: flex; align-items: center; gap: 8px;

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   filtersState, filteredLinks, toggleColor, toggleTag,
-  clearColors, clearTags, clearFilters, hasActiveFilters, setMatchMode,
+  clearColors, clearTags, clearFilters, hasActiveFilters, setMatchMode, setTagMatchMode,
 } from "./filters.svelte";
 import { linksState } from "./links.svelte";
 import { settingsState } from "./settings.svelte";
@@ -20,6 +20,7 @@ beforeEach(() => {
   ];
   clearFilters();
   setMatchMode("all");
+  setTagMatchMode("any");
   settingsState.sortOrder = "recent";
 });
 
@@ -99,6 +100,36 @@ describe("combined filter", () => {
     const result = filteredLinks();
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("3");
+  });
+});
+
+describe("tagMatchMode any/all (within-tag, multi-tag links)", () => {
+  beforeEach(() => {
+    linksState.items = [
+      makeLink("a", "blue", ["work"]),
+      makeLink("b", "blue", ["work", "personal"]),
+      makeLink("c", "blue", ["personal"]),
+    ];
+  });
+
+  it("any (default): a link with any selected tag matches", () => {
+    toggleTag("work");
+    toggleTag("personal");
+    setTagMatchMode("any");
+    expect(filteredLinks().map(l => l.id).sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("all: only links carrying every selected tag match", () => {
+    toggleTag("work");
+    toggleTag("personal");
+    setTagMatchMode("all");
+    expect(filteredLinks().map(l => l.id)).toEqual(["b"]);
+  });
+
+  it("all with a single selected tag behaves like any", () => {
+    toggleTag("work");
+    setTagMatchMode("all");
+    expect(filteredLinks().map(l => l.id).sort()).toEqual(["a", "b"]);
   });
 });
 

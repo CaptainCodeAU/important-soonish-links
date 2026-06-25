@@ -10,10 +10,17 @@ export const filtersState = $state({
   // How color and tag filters combine. "all" = AND (default, narrow);
   // "any" = OR (a link matches if it satisfies either facet).
   matchMode: "all" as MatchMode,
+  // How multiple selected tags combine within the tag filter. "any" = OR (default,
+  // a link needs any one); "all" = AND (a link must carry every selected tag).
+  tagMatchMode: "any" as MatchMode,
 });
 
 export function setMatchMode(mode: MatchMode): void {
   filtersState.matchMode = mode;
+}
+
+export function setTagMatchMode(mode: MatchMode): void {
+  filtersState.tagMatchMode = mode;
 }
 
 export function toggleColor(id: ColorId): void {
@@ -68,9 +75,12 @@ export function filteredLinks(): SavedLink[] {
   const hasColor = filtersState.activeColors.size > 0;
   const hasTag = filtersState.activeTags.size > 0;
   const colorMatch = (l: SavedLink) => filtersState.activeColors.has(l.color);
-  // Pass A: a link matches the tag filter if it carries any active tag (OR over its tags).
-  // The within-tag All/Any toggle comes in Pass B.
-  const tagMatch = (l: SavedLink) => l.tags.some(t => filtersState.activeTags.has(t));
+  // Within-tag combine: "all" = the link must carry every selected tag; "any" = at
+  // least one. (With one selected tag the two are equivalent.)
+  const tagMatch = (l: SavedLink) =>
+    filtersState.tagMatchMode === "all"
+      ? [...filtersState.activeTags].every(t => l.tags.includes(t))
+      : l.tags.some(t => filtersState.activeTags.has(t));
 
   if (hasColor || hasTag) {
     if (filtersState.matchMode === "any") {
