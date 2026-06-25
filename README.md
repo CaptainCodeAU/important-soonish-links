@@ -6,12 +6,12 @@ A Chrome extension for saving important links you absolutely intend to read. Pas
 
 - **One-click save** — click `+` to save the current tab, or right-click any link on a page
 - **Color coding** — 10-color Notion-inspired palette; hover a card's dot to recolor
-- **Tag system** — 6 built-in categories (Read later, Reference, Inspiration, Watch later, Work, Personal)
+- **Tags** — assign **multiple tags per link** from 6 built-in categories (Read later, Reference, Inspiration, Watch later, Work, Personal)
 - **Search** — fuzzy, live, case-insensitive search across titles and URLs
-- **Filter** — filter by color, tag, or both
+- **Filter** — multi-select Color and Tag menus with per-type and global reset; **Match Any/All** to combine color and tag as AND or OR, and to match any vs. all of several selected tags
 - **Sort** — recently added, oldest first, alphabetical, by color, or by tag
 - **Mark as read** — dim completed links without deleting them
-- **Delete with undo** — confirmation dialog + 5-second undo toast
+- **Delete with undo** — confirmation dialog + 8-second undo toast
 - **Export** — JSON, Markdown, or HTML (Netscape Bookmark format)
 - **Import** — merge or replace from a JSON backup
 - **Dark mode** — light, dark, or follow system
@@ -104,7 +104,7 @@ pnpm typecheck
 ```
 src/
 ├── background/       Service worker (context menu, badge updates)
-├── components/       15 Svelte components (App, Header, LinkCard, etc.)
+├── components/       17 Svelte components (App, Header, LinkCard, FilterBar, etc.)
 ├── content/          Reserved for future content scripts
 ├── lib/              Colors, tags, search, utilities, microcopy
 ├── popup/            Extension popup entry point
