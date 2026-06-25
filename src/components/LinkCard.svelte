@@ -46,6 +46,7 @@
   class="card"
   class:read={link.isRead}
   style:--color-card-bg={`var(--color-${link.color}-bg)`}
+  style:--color-card-accent={`var(--color-${link.color}-solid)`}
   tabindex="0"
   role="listitem"
   onkeydown={handleKeydown}
@@ -78,18 +79,33 @@
   .card {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
+    gap: 8px;
+    padding: 10px 14px 10px 16px;
     border-radius: var(--radius-md);
-    min-height: 56px;
+    min-height: 60px;
+    /* Hybrid: color-tinted wash background + a brighter 3px solid left bar in the same
+       color. The bar is an inset box-shadow so it follows the rounded corners. */
     background: var(--color-card-bg, var(--color-surface-raised));
-    transition: box-shadow var(--duration-fast) var(--ease-out);
+    border: 1px solid var(--color-border);
+    box-shadow: inset 3px 0 0 0 var(--color-card-accent, var(--color-default-solid));
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
     cursor: default;
     position: relative;
   }
-  .card:hover { box-shadow: var(--shadow-card-hover); }
+  /* Hover deepens the wash via an inset glaze (NOT filter/transform — those would
+     become the containing block for the cards' position:fixed dropdowns and break
+     ColorPicker/TagDropdown positioning). */
+  .card:hover {
+    border-color: var(--color-border-strong);
+    box-shadow:
+      inset 3px 0 0 0 var(--color-card-accent, var(--color-default-solid)),
+      inset 0 0 0 200px rgba(255, 255, 255, 0.05),
+      var(--shadow-card-hover);
+  }
   .card:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
-  .card.read { opacity: 0.6; }
+  .card.read { opacity: 0.55; }
   .card:hover .delete-btn { opacity: 1; }
   .content { flex: 1; min-width: 0; }
   .title {

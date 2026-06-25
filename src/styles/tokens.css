@@ -57,6 +57,10 @@
   --radius-lg:   12px;
   --radius-full: 9999px;
 
+  /* Popup window width. If you change it, also update POPUP_WIDTH in App.svelte
+     (the view slide-transition offset must match for a full slide-out). */
+  --popup-width: 760px;
+
   --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-dropdown:   0 4px 16px rgba(0, 0, 0, 0.12);
   --shadow-modal:      0 8px 32px rgba(0, 0, 0, 0.16);
@@ -76,8 +80,9 @@
   --color-text-muted:     #9B9A97;
   --color-text-inverse:   #FFFFFF;
 
-  --color-border:       rgba(0, 0, 0, 0.08);
-  --color-border-focus: #0B6E99;
+  --color-border:        rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
+  --color-border-focus:  #0B6E99;
 
   --color-accent:       #0B6E99;
   --color-destructive:  #E03E3E;
@@ -104,8 +109,9 @@
   --color-text-muted:     #64635F;
   --color-text-inverse:   #191919;
 
-  --color-border:       rgba(255, 255, 255, 0.08);
-  --color-border-focus: #6BAFCA;
+  --color-border:        rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-border-focus:  #6BAFCA;
 
   --color-accent:       #6BAFCA;
   --color-destructive:  #F28282;

@@ -8,7 +8,7 @@
 }
 
 html, body {
-  width: 380px;
+  width: var(--popup-width);
   min-height: 100px;
   max-height: 580px;
   overflow: hidden;
