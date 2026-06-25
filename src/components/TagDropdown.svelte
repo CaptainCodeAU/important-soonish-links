@@ -11,7 +11,7 @@
   let menuEl: HTMLElement | undefined = $state();
   let menuStyle = $state("");
 
-  function select(tag?: TagId) { onChange(tag); open = false; }
+  function select(tag: TagId | undefined) { onChange(tag); open = false; }
 
   function toggle() {
     if (open) { open = false; return; }

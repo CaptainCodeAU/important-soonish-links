@@ -1,0 +1,8 @@
+# pnpm v11 reads settings (incl. overrides) from here, not package.json.
+overrides:
+  # chokidar@4.0.3 fails the supply-chain trust-downgrade policy; pin to the
+  # trusted v5 line instead (never override the policy itself).
+  chokidar: ^5.0.0
+  # @testing-library/svelte-core@1.1.2 ships a legacy `export let` scaffold that
+  # fails under this project's global runes mode. 1.0.0 is runes-compatible.
+  "@testing-library/svelte-core": 1.0.0
