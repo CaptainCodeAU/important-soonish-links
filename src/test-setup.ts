@@ -3,6 +3,21 @@ import { cleanup } from "@testing-library/svelte";
 
 afterEach(cleanup);
 
+// jsdom doesn't implement the Web Animations API, so Svelte's `fade`/`fly`
+// transitions throw "element.animate is not a function" as an uncaught error
+// during component tests. Stub it to a no-op Animation so transitions are inert
+// under test (roadmap H1).
+if (typeof Element !== "undefined" && !Element.prototype.animate) {
+  Element.prototype.animate = function () {
+    return {
+      cancel() {}, finish() {}, play() {}, pause() {},
+      addEventListener() {}, removeEventListener() {},
+      finished: Promise.resolve(),
+      onfinish: null, oncancel: null,
+    } as unknown as Animation;
+  };
+}
+
 function makeStorageArea(): chrome.storage.StorageArea {
   const store: Record<string, unknown> = {};
   return {
