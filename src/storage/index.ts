@@ -1,7 +1,7 @@
 import type { SavedLink, AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 import { CURRENT_SCHEMA_VERSION } from "./migrations";
-import { readChunked, writeChunkedToSync, clearChunked } from "./sync";
+import { readPersistedLinks, writeSyncLinks, clearSyncLinks } from "./sync";
 import { sanitizeLinks } from "../lib/sanitize";
 
 const STORAGE_KEYS = {
@@ -11,8 +11,8 @@ const STORAGE_KEYS = {
 
 /** Remove all link + settings data from the sync (cloud) area. */
 async function clearCloudStorage(): Promise<void> {
-  await clearChunked();
-  await chrome.storage.sync.remove([STORAGE_KEYS.LINKS, STORAGE_KEYS.SETTINGS]);
+  await clearSyncLinks();
+  await chrome.storage.sync.remove(STORAGE_KEYS.SETTINGS);
 }
 
 // ── Settings ────────────────────────────────────────────────
@@ -78,10 +78,7 @@ export async function writeSettings(settings: AppSettings): Promise<void> {
 
 async function readRawLinks(storage: chrome.storage.StorageArea): Promise<SavedLink[]> {
   const result = await storage.get(null);
-  if (result[STORAGE_KEYS.LINKS] !== undefined) {
-    return sanitizeLinks(result[STORAGE_KEYS.LINKS]);
-  }
-  return sanitizeLinks(await readChunked(result));
+  return sanitizeLinks(await readPersistedLinks(result));
 }
 
 export async function readLinks(): Promise<SavedLink[]> {
@@ -106,7 +103,7 @@ export async function writeLinks(links: SavedLink[]): Promise<WriteResult> {
 
   // writeChunkedToSync throws when the data can't fit (per-item or total quota).
   try {
-    await writeChunkedToSync(plain);
+    await writeSyncLinks(plain);
     return { downgraded: false };
   } catch {
     // Downgrade: keep the data locally (no loss), clear the cloud, turn sync off.
@@ -123,16 +120,12 @@ export async function writeLinks(links: SavedLink[]): Promise<WriteResult> {
 export async function enableSyncMigration(): Promise<void> {
   const localRes = await chrome.storage.local.get(STORAGE_KEYS.LINKS);
   const localLinks = sanitizeLinks(localRes[STORAGE_KEYS.LINKS]);
-  await writeChunkedToSync(localLinks);
+  await writeSyncLinks(localLinks);
 }
 
 /** Disabling sync: copy synced links back down to local, THEN clear the cloud. */
 export async function disableSyncMigration(): Promise<void> {
-  const all = await chrome.storage.sync.get(null);
-  const syncLinks = all[STORAGE_KEYS.LINKS] !== undefined
-    ? sanitizeLinks(all[STORAGE_KEYS.LINKS])
-    : sanitizeLinks(await readChunked(all));
-
+  const syncLinks = sanitizeLinks(await readPersistedLinks(await chrome.storage.sync.get(null)));
   await chrome.storage.local.set({ [STORAGE_KEYS.LINKS]: syncLinks });
   await clearCloudStorage();
 }

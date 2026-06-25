@@ -3,6 +3,7 @@ import {
   readSettings, writeSettings, readLinks, writeLinks,
   enableSyncMigration, disableSyncMigration,
 } from "./index";
+import { readPersistedLinks, writeSyncLinks } from "./sync";
 import { DEFAULT_SETTINGS } from "../types";
 import type { SavedLink } from "../types";
 
@@ -66,19 +67,23 @@ describe("writeSettings sync payload (A3)", () => {
 });
 
 describe("enable/disable migration (A3 — no data loss)", () => {
-  it("enable copies local links up to sync", async () => {
+  it("enable copies local links up to sync (compressed)", async () => {
     await chrome.storage.local.set({ isl_links: [link("1"), link("2")] });
     await enableSyncMigration();
-    const synced = (await chrome.storage.sync.get("isl_links")).isl_links as SavedLink[];
-    expect(synced).toHaveLength(2);
+    const all = await chrome.storage.sync.get(null);
+    expect(all["isl_gz_0"]).toBeDefined();      // stored in the compressed format
+    expect(all["isl_links"]).toBeUndefined();   // not the plain format
+    expect(await readPersistedLinks(all)).toHaveLength(2);
   });
 
   it("disable copies synced links down to local, then clears the cloud", async () => {
-    await chrome.storage.sync.set({ isl_links: [link("1")] });
+    await writeSyncLinks([link("1")]);          // seed sync in the compressed format
     await disableSyncMigration();
     const local = (await chrome.storage.local.get("isl_links")).isl_links as SavedLink[];
     expect(local).toHaveLength(1);
-    expect((await chrome.storage.sync.get("isl_links")).isl_links).toBeUndefined();
+    const all = await chrome.storage.sync.get(null);
+    expect(all["isl_gz_0"]).toBeUndefined();
+    expect(all["isl_links"]).toBeUndefined();
   });
 });
 
@@ -94,14 +99,45 @@ describe("readLinks honors discovered sync state (A3)", () => {
   });
 });
 
-describe("oversized link downgrade (A6)", () => {
+describe("downgrade when sync rejects (A6)", () => {
   it("keeps data locally and turns sync off", async () => {
     await writeSettings({ ...DEFAULT_SETTINGS, syncEnabled: true, syncMode: "links-only" });
-    const huge: SavedLink = { ...link("big"), url: "https://e.com/" + "x".repeat(9000) };
-    const res = await writeLinks([huge]);
-    expect(res.downgraded).toBe(true);
+    const origSet = chrome.storage.sync.set;
+    // Simulate a real quota rejection (compressed payload still too big).
+    (chrome.storage.sync as unknown as { set: unknown }).set = () =>
+      Promise.reject(new Error("QUOTA_BYTES quota exceeded"));
+    try {
+      const res = await writeLinks([link("1")]);
+      expect(res.downgraded).toBe(true);
+    } finally {
+      (chrome.storage.sync as unknown as { set: typeof origSet }).set = origSet;
+    }
     expect((await readSettings()).syncEnabled).toBe(false);
     expect(await readLinks()).toHaveLength(1);
+  });
+});
+
+describe("gzip compression (large collections fit sync)", () => {
+  it("round-trips links through the compressed format", async () => {
+    const links: SavedLink[] = [
+      link("a"),
+      { ...link("b"), title: 'with, commas "quotes" & symbols' },
+    ];
+    await writeSyncLinks(links);
+    const all = await chrome.storage.sync.get(null);
+    expect(all["isl_gz_0"]).toBeDefined();
+    expect(all["isl_links"]).toBeUndefined();
+    expect(await readPersistedLinks(all)).toEqual(links);
+  });
+
+  it("fits a 500-link collection (would exceed 100KB uncompressed) within per-item limits", async () => {
+    const many: SavedLink[] = Array.from({ length: 500 }, (_, i) => link(`link-number-${i}`));
+    await writeSyncLinks(many);
+    const all = await chrome.storage.sync.get(null);
+    for (const k of Object.keys(all)) {
+      if (k.startsWith("isl_gz_")) expect((all[k] as string).length).toBeLessThan(8192);
+    }
+    expect(await readPersistedLinks(all)).toHaveLength(500);
   });
 });
 
