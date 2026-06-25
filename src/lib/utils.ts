@@ -22,16 +22,15 @@ export function normalizeUrl(url: string): string {
  * act as a tracking beacon on popup open), `javascript:`, and anything else — those fall
  * back to the letter-avatar in FaviconImage. The favicon is the extension's only outbound
  * request, so this is the gate that keeps an imported/forged URL from phoning home (B4).
+ *
+ * A scheme-prefix test (not `new URL()`) is enough: we never resolve the URL ourselves —
+ * the browser does, as the <img> src — so only the scheme matters, and this runs per-row
+ * on render and per-link on every storage read.
  */
 export function isSafeFaviconUrl(url: string): boolean {
   if (!url) return false;
   const trimmed = url.trim();
-  if (/^data:image\//i.test(trimmed)) return true;
-  try {
-    return new URL(trimmed).protocol === "https:";
-  } catch {
-    return false;
-  }
+  return /^data:image\//i.test(trimmed) || /^https:\/\//i.test(trimmed);
 }
 
 export function hostnameFromUrl(url: string): string {
