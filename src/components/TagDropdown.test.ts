@@ -49,7 +49,7 @@ describe("TagDropdown", () => {
   it("calls onChange with undefined when 'No tag' is selected", async () => {
     const onChange = vi.fn();
     render(TagDropdown, { value: "read-later" as const, onChange });
-    const trigger = screen.getByLabelText("Read later");
+    const trigger = screen.getByLabelText("Tag: Read later");
     await fireEvent.click(trigger);
     await tick();
     const noTag = screen.getByText("No tag");
@@ -57,9 +57,12 @@ describe("TagDropdown", () => {
     expect(onChange).toHaveBeenCalledWith(undefined);
   });
 
-  it("renders tag pill when value is set", () => {
+  it("exposes the set tag via the trigger's accessible label (fixed-width icon, no pill)", () => {
     const onChange = vi.fn();
     render(TagDropdown, { value: "read-later" as const, onChange });
-    expect(screen.getByText("Read later")).toBeTruthy();
+    // The trigger is a fixed-size icon button; the tag is conveyed via aria-label/title
+    // (and accent color), not a variable-width text pill that would shift the row layout.
+    expect(screen.getByLabelText("Tag: Read later")).toBeTruthy();
+    expect(screen.queryByText("Read later")).toBeNull();
   });
 });

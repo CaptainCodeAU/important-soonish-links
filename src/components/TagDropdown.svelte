@@ -18,11 +18,15 @@
     if (!triggerEl) return;
     const rect = triggerEl.getBoundingClientRect();
     const menuHeight = (DEFAULT_TAGS.length + 1) * 30 + 8;
+    const spaceAbove = rect.top;
     const spaceBelow = window.innerHeight - rect.bottom;
-    if (spaceBelow < menuHeight) {
-      menuStyle = `position:fixed;left:${rect.left}px;bottom:${window.innerHeight - rect.top + 4}px;`;
+    // Prefer opening ABOVE the trigger: this is a popup within the small extension
+    // popup, so the tall tag menu sits better above the row than hanging off the
+    // bottom. Fall back to below only when there isn't room above.
+    if (spaceAbove >= menuHeight || spaceAbove > spaceBelow) {
+      menuStyle = `position:fixed;left:${rect.left}px;bottom:${window.innerHeight - rect.top + 6}px;`;
     } else {
-      menuStyle = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;`;
+      menuStyle = `position:fixed;left:${rect.left}px;top:${rect.bottom + 6}px;`;
     }
     open = true;
   }
@@ -40,24 +44,24 @@
 <div class="tag-wrap" bind:this={dropEl}>
   <button
     class="tag-trigger"
+    class:tagged={value}
     bind:this={triggerEl}
     onclick={toggle}
-    aria-label={value ? TAG_MAP[value].label : "Add tag"}
+    style:color={value ? NOTION_PALETTE[TAG_MAP[value].accentColor].solid : undefined}
+    aria-label={value ? `Tag: ${TAG_MAP[value].label}` : "Add tag"}
+    title={value ? TAG_MAP[value].label : "Add tag"}
     aria-expanded={open}
     aria-haspopup="listbox"
   >
-    {#if value}
-      <span
-        class="pill"
-        style:background={NOTION_PALETTE[TAG_MAP[value].accentColor].lightBg}
-        style:color={NOTION_PALETTE[TAG_MAP[value].accentColor].solid}
-      >{TAG_MAP[value].label}</span>
-    {:else}
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-        <line x1="7" y1="7" x2="7.01" y2="7"/>
-      </svg>
-    {/if}
+    <!-- Always a fixed-size icon so the title column never shifts row-to-row.
+         Filled + accent-colored when a tag is set; muted outline when not. -->
+    <svg
+      class="tag-icon" width="15" height="15" viewBox="0 0 24 24"
+      fill={value ? "currentColor" : "none"} stroke="currentColor" stroke-width="2"
+    >
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+      <line x1="7" y1="7" x2="7.01" y2="7"/>
+    </svg>
   </button>
   {#if open}
     <ul class="dropdown" role="listbox" aria-label="Card tag" style={menuStyle} bind:this={menuEl} transition:fade={{ duration: 200 }}>
@@ -88,17 +92,19 @@
 
 <style>
   .tag-wrap { position: relative; flex-shrink: 0; }
+  /* Fixed footprint regardless of tagged/untagged so the favicon + title column
+     stays aligned across every row (no width jump from a label pill). */
   .tag-trigger {
-    display: flex; align-items: center; color: var(--color-text-muted);
+    display: flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; flex-shrink: 0;
+    color: var(--color-text-muted);
     background: transparent; border: none; cursor: pointer; padding: 0;
+    border-radius: var(--radius-sm);
   }
+  .tag-trigger:hover { color: var(--color-text-secondary); }
+  .tag-trigger.tagged:hover { opacity: 0.8; }
   .tag-trigger:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
-  .pill {
-    display: inline-flex; align-items: center;
-    padding: 2px 6px;
-    border-radius: var(--radius-full);
-    font-size: 11px; font-weight: 500;
-  }
+  .tag-icon { display: block; }
   .dropdown {
     min-width: 140px;
     background: var(--color-surface-base);
