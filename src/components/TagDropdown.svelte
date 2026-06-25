@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { tick } from "svelte";
   import { fade } from "svelte/transition";
   import { DEFAULT_TAGS, TAG_MAP } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
+  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption } from "../lib/popover";
   import type { TagId } from "../types";
 
   let { values, onToggle }: { values: TagId[]; onToggle: (t: TagId) => void } = $props();
@@ -20,18 +20,15 @@
   function toggleOpen() {
     if (open) { open = false; return; }
     if (!triggerEl) return;
-    const rect = triggerEl.getBoundingClientRect();
-    const menuHeight = DEFAULT_TAGS.length * 32 + 8;
-    const spaceAbove = rect.top;
-    const spaceBelow = window.innerHeight - rect.bottom;
     // Prefer opening above (tall menu inside a short popup); fall back to below.
-    if (spaceAbove >= menuHeight || spaceAbove > spaceBelow) {
-      menuStyle = `position:fixed;left:${rect.left}px;bottom:${window.innerHeight - rect.top + 6}px;`;
-    } else {
-      menuStyle = `position:fixed;left:${rect.left}px;top:${rect.bottom + 6}px;`;
-    }
+    const menuHeight = DEFAULT_TAGS.length * 32 + 8;
+    menuStyle = placePopover(triggerEl.getBoundingClientRect(), {
+      placement: "auto-top",
+      offset: 6,
+      panelHeight: menuHeight,
+    });
     open = true;
-    tick().then(() => menuEl?.querySelector<HTMLElement>("[role=option]")?.focus());
+    focusFirstOption(menuEl);
   }
 
   function close(returnFocus = true) {
@@ -40,19 +37,11 @@
   }
 
   function onMenuKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") { e.preventDefault(); close(); return; }
-    const opts = menuEl ? Array.from(menuEl.querySelectorAll<HTMLElement>("[role=option]")) : [];
-    if (!opts.length) return;
-    const i = opts.indexOf(document.activeElement as HTMLElement);
-    if (e.key === "ArrowDown") { e.preventDefault(); opts[Math.min(i + 1, opts.length - 1)]?.focus(); }
-    if (e.key === "ArrowUp")   { e.preventDefault(); opts[Math.max(i - 1, 0)]?.focus(); }
+    if (rovingKeydown(e, menuEl, { orientation: "vertical", homeEnd: false }) === "close") close();
   }
 
   function handleWindowClick(e: MouseEvent) {
-    if (open && dropEl && !dropEl.contains(e.target as Node) &&
-        menuEl && !menuEl.contains(e.target as Node)) {
-      open = false;
-    }
+    if (open && clickedOutside(e, [dropEl, menuEl])) open = false;
   }
 </script>
 

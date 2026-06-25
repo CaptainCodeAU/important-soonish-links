@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { tick } from "svelte";
   import { fade } from "svelte/transition";
   import { NOTION_PALETTE } from "../lib/colors";
   import { COLOR_IDS } from "../types";
   import { filtersState, toggleColor, clearColors } from "../store/filters.svelte";
+  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption } from "../lib/popover";
   import { COPY } from "../lib/copy";
 
   let open = $state(false);
@@ -16,11 +16,10 @@
   function toggle() {
     if (open) { open = false; return; }
     if (!triggerEl) return;
-    const r = triggerEl.getBoundingClientRect();
-    menuStyle = `position:fixed;left:${r.left}px;top:${r.bottom + 6}px;`;
+    menuStyle = placePopover(triggerEl.getBoundingClientRect(), { placement: "bottom", offset: 6 });
     open = true;
     // Move focus into the menu so keyboard users can navigate immediately.
-    tick().then(() => menuEl?.querySelector<HTMLElement>("[role=option]")?.focus());
+    focusFirstOption(menuEl);
   }
 
   function close(returnFocus = true) {
@@ -30,21 +29,11 @@
 
   // Roving focus across the swatch grid (Left/Right/Home/End), Escape to close.
   function onMenuKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") { e.preventDefault(); close(); return; }
-    const opts = menuEl ? Array.from(menuEl.querySelectorAll<HTMLElement>("[role=option]")) : [];
-    if (!opts.length) return;
-    const i = opts.indexOf(document.activeElement as HTMLElement);
-    if (e.key === "ArrowRight") { e.preventDefault(); opts[Math.min(i + 1, opts.length - 1)]?.focus(); }
-    if (e.key === "ArrowLeft")  { e.preventDefault(); opts[Math.max(i - 1, 0)]?.focus(); }
-    if (e.key === "Home")       { e.preventDefault(); opts[0]?.focus(); }
-    if (e.key === "End")        { e.preventDefault(); opts[opts.length - 1]?.focus(); }
+    if (rovingKeydown(e, menuEl, { orientation: "horizontal", homeEnd: true }) === "close") close();
   }
 
   function handleWindowClick(e: MouseEvent) {
-    if (open && triggerEl && !triggerEl.contains(e.target as Node) &&
-        menuEl && !menuEl.contains(e.target as Node)) {
-      open = false;
-    }
+    if (open && clickedOutside(e, [triggerEl, menuEl])) open = false;
   }
 </script>
 

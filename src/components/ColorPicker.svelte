@@ -1,5 +1,6 @@
 <script lang="ts">
   import { NOTION_PALETTE } from "../lib/colors";
+  import { placePopover, clickedOutside } from "../lib/popover";
   import { COLOR_IDS } from "../types";
   import type { ColorId } from "../types";
 
@@ -37,22 +38,16 @@
   function openPicker() {
     cancelClose();
     if (!dotEl) return;
-    const rect = dotEl.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const panelHeight = 40;
-    if (spaceBelow < panelHeight) {
-      swatchStyle = `position:fixed;left:${rect.left}px;bottom:${window.innerHeight - rect.top + 4}px;`;
-    } else {
-      swatchStyle = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;`;
-    }
+    swatchStyle = placePopover(dotEl.getBoundingClientRect(), {
+      placement: "auto-bottom",
+      offset: 4,
+      panelHeight: 40,
+    });
     open = true;
   }
 
   function handleWindowClick(e: MouseEvent) {
-    if (open && pickerEl && !pickerEl.contains(e.target as Node) &&
-        swatchesEl && !swatchesEl.contains(e.target as Node)) {
-      open = false;
-    }
+    if (open && clickedOutside(e, [pickerEl, swatchesEl])) open = false;
   }
 </script>
 
