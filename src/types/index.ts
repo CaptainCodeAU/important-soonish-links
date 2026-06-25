@@ -27,6 +27,9 @@ export type SortOrder =
 
 export type SyncMode = "links-only" | "everything";
 
+/** How active color and tag filters combine: "all" = AND (narrow), "any" = OR (widen). */
+export type MatchMode = "all" | "any";
+
 export interface SavedLink {
   id: string;
   title: string;

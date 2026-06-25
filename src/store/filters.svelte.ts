@@ -1,4 +1,4 @@
-import type { ColorId, TagId, SavedLink, SortOrder } from "../types";
+import type { ColorId, TagId, SavedLink, SortOrder, MatchMode } from "../types";
 import { linksState } from "./links.svelte";
 import { settingsState } from "./settings.svelte";
 import { searchState } from "./search.svelte";
@@ -7,7 +7,14 @@ import { fuzzySearch } from "../lib/search";
 export const filtersState = $state({
   activeColors: new Set<ColorId>(),
   activeTags: new Set<TagId>(),
+  // How color and tag filters combine. "all" = AND (default, narrow);
+  // "any" = OR (a link matches if it satisfies either facet).
+  matchMode: "all" as MatchMode,
 });
+
+export function setMatchMode(mode: MatchMode): void {
+  filtersState.matchMode = mode;
+}
 
 export function toggleColor(id: ColorId): void {
   const next = new Set(filtersState.activeColors);
@@ -58,12 +65,20 @@ export function filteredLinks(): SavedLink[] {
     items = fuzzySearch(items, searchState.query);
   }
 
-  if (filtersState.activeColors.size > 0) {
-    items = items.filter(l => filtersState.activeColors.has(l.color));
-  }
+  const hasColor = filtersState.activeColors.size > 0;
+  const hasTag = filtersState.activeTags.size > 0;
+  const colorMatch = (l: SavedLink) => filtersState.activeColors.has(l.color);
+  const tagMatch = (l: SavedLink) => l.tag !== undefined && filtersState.activeTags.has(l.tag);
 
-  if (filtersState.activeTags.size > 0) {
-    items = items.filter(l => l.tag !== undefined && filtersState.activeTags.has(l.tag));
+  if (hasColor || hasTag) {
+    if (filtersState.matchMode === "any") {
+      // OR across facets: match either an active color or an active tag.
+      items = items.filter(l => (hasColor && colorMatch(l)) || (hasTag && tagMatch(l)));
+    } else {
+      // AND across facets: each active facet must pass.
+      if (hasColor) items = items.filter(colorMatch);
+      if (hasTag) items = items.filter(tagMatch);
+    }
   }
 
   const order = settingsState.sortOrder;

@@ -29,6 +29,11 @@ export const COPY = {
   FILTER_TAGS:            "Tags",
   FILTER_CLEAR:           "Clear",
   FILTER_CLEAR_ALL:       "Clear all",
+  FILTER_MATCH:           "Match",
+  FILTER_MATCH_ALL:       "All",
+  FILTER_MATCH_ANY:       "Any",
+  FILTER_MATCH_ALL_TIP:   "Show links matching every active filter type",
+  FILTER_MATCH_ANY_TIP:   "Show links matching any active filter type",
   EMPTY_CLEAR_FILTERS:    "Clear filters",
 
   DELETE_CONFIRM_TITLE:   "Delete this link?",
