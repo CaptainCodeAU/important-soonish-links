@@ -5,6 +5,7 @@
   import { COPY, fmt } from "../lib/copy";
   import { clearAll, writeLinks } from "../storage";
   import { sanitizeLinks } from "../lib/sanitize";
+  import { serializeJson, serializeMarkdown, serializeHtml } from "../lib/export";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import type { SavedLink, SortOrder } from "../types";
 
@@ -22,30 +23,15 @@
   }
 
   function exportJson() {
-    downloadBlob(JSON.stringify(linksState.items, null, 2), "important-soonish-links.json", "application/json");
+    downloadBlob(serializeJson(linksState.items), "important-soonish-links.json", "application/json");
   }
 
   function exportMarkdown() {
-    const lines: string[] = [];
-    const byTag = new Map<string, SavedLink[]>();
-    for (const l of linksState.items) {
-      const key = l.tag ?? "other";
-      if (!byTag.has(key)) byTag.set(key, []);
-      byTag.get(key)!.push(l);
-    }
-    for (const [tag, links] of byTag) {
-      lines.push(`\n## ${tag}`);
-      for (const l of links) lines.push(`- [${l.title}](${l.url})`);
-    }
-    downloadBlob(lines.join("\n"), "important-soonish-links.md", "text/markdown");
+    downloadBlob(serializeMarkdown(linksState.items), "important-soonish-links.md", "text/markdown");
   }
 
   function exportHtml() {
-    const items = linksState.items.map(l =>
-      `    <DT><A HREF="${l.url}">${l.title}</A>`
-    ).join("\n");
-    const html = `<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n${items}\n</DL><p>`;
-    downloadBlob(html, "important-soonish-links.html", "text/html");
+    downloadBlob(serializeHtml(linksState.items), "important-soonish-links.html", "text/html");
   }
 
   // ── Import ────────────────────────────────────────────────
