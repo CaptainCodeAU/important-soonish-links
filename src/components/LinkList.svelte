@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { filteredLinks, filtersState } from "../store/filters.svelte";
+  import { filteredLinks, clearFilters, hasActiveFilters } from "../store/filters.svelte";
   import { linksState } from "../store/links.svelte";
   import { searchState } from "../store/search.svelte";
   import { COPY } from "../lib/copy";
@@ -7,10 +7,9 @@
   import EmptyState from "./EmptyState.svelte";
 
   const links = $derived.by(() => filteredLinks());
+  const hasFilterChips = $derived(hasActiveFilters());
   const isFiltering = $derived(
-    searchState.query.length > 0 ||
-    filtersState.activeColors.size > 0 ||
-    filtersState.activeTags.size > 0
+    searchState.query.length > 0 || hasFilterChips
   );
   const readCount = $derived(linksState.items.filter(l => l.isRead).length);
 
@@ -29,9 +28,12 @@
 
 <div class="list-wrap">
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div role="list" aria-live="polite" aria-label="Saved links" bind:this={listEl} onkeydown={handleListKeydown}>
+  <div class="links" role="list" aria-live="polite" aria-label="Saved links" bind:this={listEl} onkeydown={handleListKeydown}>
     {#if links.length === 0}
-      <EmptyState type={!isFiltering && linksState.loaded && linksState.items.length === 0 ? "empty" : "no-results"} />
+      <EmptyState
+        type={!isFiltering && linksState.loaded && linksState.items.length === 0 ? "empty" : "no-results"}
+        onClearFilters={hasFilterChips ? clearFilters : undefined}
+      />
     {:else}
       {#each links as link (link.id)}
         <LinkCard {link} />
@@ -51,8 +53,13 @@
   .list-wrap {
     flex: 1;
     overflow-y: auto;
-    padding: 4px 8px;
+    padding: 8px 10px;
     min-height: 0;
+  }
+  .links {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
   .footer {
     border-top: 1px solid var(--color-border);

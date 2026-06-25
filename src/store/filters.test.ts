@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { filtersState, filteredLinks, toggleColor, toggleTag, clearFilters } from "./filters.svelte";
+import {
+  filtersState, filteredLinks, toggleColor, toggleTag,
+  clearColors, clearTags, clearFilters, hasActiveFilters,
+} from "./filters.svelte";
 import { linksState } from "./links.svelte";
 import { settingsState } from "./settings.svelte";
 import type { SavedLink } from "../types";
@@ -38,6 +41,53 @@ describe("tag filter", () => {
   it("filters by tag", () => {
     toggleTag("work");
     expect(filteredLinks()).toHaveLength(1);
+  });
+
+  it("OR logic: two tags shows union", () => {
+    toggleTag("work");
+    toggleTag("personal");
+    expect(filteredLinks()).toHaveLength(3);
+  });
+});
+
+describe("reset paths", () => {
+  it("clearColors resets only colors", () => {
+    toggleColor("blue");
+    toggleTag("work");
+    clearColors();
+    expect(filtersState.activeColors.size).toBe(0);
+    expect(filtersState.activeTags.size).toBe(1);
+  });
+
+  it("clearTags resets only tags", () => {
+    toggleColor("blue");
+    toggleTag("work");
+    clearTags();
+    expect(filtersState.activeTags.size).toBe(0);
+    expect(filtersState.activeColors.size).toBe(1);
+  });
+
+  it("hasActiveFilters reflects any selection", () => {
+    expect(hasActiveFilters()).toBe(false);
+    toggleTag("work");
+    expect(hasActiveFilters()).toBe(true);
+    clearFilters();
+    expect(hasActiveFilters()).toBe(false);
+  });
+
+  it("the bug: untagging the last matching link empties the list but stays resettable", () => {
+    // Filter by a tag, then untag every link that had it.
+    toggleTag("work");
+    expect(filteredLinks()).toHaveLength(1);
+    linksState.items = linksState.items.map(l =>
+      l.tag === "work" ? { ...l, tag: undefined } : l
+    );
+    // List is now empty under the active filter...
+    expect(filteredLinks()).toHaveLength(0);
+    // ...but the filter is still active and recoverable (this is what the old UI lost).
+    expect(hasActiveFilters()).toBe(true);
+    clearFilters();
+    expect(filteredLinks().length).toBe(linksState.items.length);
   });
 });
 

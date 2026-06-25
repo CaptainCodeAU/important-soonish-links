@@ -25,6 +25,12 @@ export const COPY = {
   EMPTY_LIST:             "No links saved yet. Past-you has some work to do.",
   EMPTY_SEARCH:           "Nothing matches. Past-you may have called it something else.",
 
+  FILTER_COLOR:           "Color",
+  FILTER_TAGS:            "Tags",
+  FILTER_CLEAR:           "Clear",
+  FILTER_CLEAR_ALL:       "Clear all",
+  EMPTY_CLEAR_FILTERS:    "Clear filters",
+
   DELETE_CONFIRM_TITLE:   "Delete this link?",
   DELETE_CONFIRM_BODY:    "Past-you won't mind.",
   DELETE_CANCEL:          "Cancel",

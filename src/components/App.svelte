@@ -5,12 +5,16 @@
   import { loadSettings } from "../store/settings.svelte";
   import Header from "./Header.svelte";
   import SearchBar from "./SearchBar.svelte";
-  import FilterRow from "./FilterRow.svelte";
+  import FilterBar from "./FilterBar.svelte";
   import LinkList from "./LinkList.svelte";
   import ToastContainer from "./ToastContainer.svelte";
   import SettingsView from "./SettingsView.svelte";
 
   let view = $state<"list" | "settings">("list");
+
+  // Slide distance for the view transition; must match --popup-width (tokens.css)
+  // so a view fully clears the popup on slide-out.
+  const POPUP_WIDTH = 760;
 
   onMount(async () => {
     await Promise.all([loadLinks(), loadSettings()]);
@@ -31,14 +35,14 @@
 <div class="popup">
   <div class="views">
     {#if view === "list"}
-      <div class="view" transition:fly={{ x: -380, duration: 200 }}>
+      <div class="view" transition:fly={{ x: -POPUP_WIDTH, duration: 200 }}>
         <Header onSettings={() => (view = "settings")} />
         <SearchBar />
-        <FilterRow />
+        <FilterBar />
         <LinkList />
       </div>
     {:else}
-      <div class="view" transition:fly={{ x: 380, duration: 200 }}>
+      <div class="view" transition:fly={{ x: POPUP_WIDTH, duration: 200 }}>
         <SettingsView onBack={() => (view = "list")} />
       </div>
     {/if}
@@ -48,7 +52,7 @@
 
 <style>
   .popup {
-    width: 380px;
+    width: var(--popup-width);
     height: 580px;
     display: flex;
     flex-direction: column;

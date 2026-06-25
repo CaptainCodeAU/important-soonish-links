@@ -1,10 +1,16 @@
 <script lang="ts">
   import { COPY } from "../lib/copy";
-  let { type }: { type: "empty" | "no-results" } = $props();
+  let { type, onClearFilters }: {
+    type: "empty" | "no-results";
+    onClearFilters?: () => void;
+  } = $props();
 </script>
 
 <div class="empty">
   <p>{type === "empty" ? COPY.EMPTY_LIST : COPY.EMPTY_SEARCH}</p>
+  {#if onClearFilters}
+    <button class="clear-filters" onclick={onClearFilters}>{COPY.EMPTY_CLEAR_FILTERS}</button>
+  {/if}
 </div>
 
 <style>
@@ -21,4 +27,14 @@
     color: var(--color-text-muted);
     line-height: 1.5;
   }
+  .clear-filters {
+    margin-top: 14px;
+    padding: 6px 14px; font-size: 12px; font-weight: 500;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary); cursor: pointer;
+  }
+  .clear-filters:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .clear-filters:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
 </style>

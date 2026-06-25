@@ -21,9 +21,22 @@ export function toggleTag(id: TagId): void {
   filtersState.activeTags = next;
 }
 
+export function clearColors(): void {
+  filtersState.activeColors = new Set();
+}
+
+export function clearTags(): void {
+  filtersState.activeTags = new Set();
+}
+
 export function clearFilters(): void {
   filtersState.activeColors = new Set();
   filtersState.activeTags = new Set();
+}
+
+/** Whether any filter (color or tag) is currently applied. */
+export function hasActiveFilters(): boolean {
+  return filtersState.activeColors.size > 0 || filtersState.activeTags.size > 0;
 }
 
 function sortLinks(links: SavedLink[], order: SortOrder): SavedLink[] {
