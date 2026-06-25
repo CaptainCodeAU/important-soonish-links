@@ -108,7 +108,11 @@
   }
   .card:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
   .card.read { opacity: 0.55; }
-  .card:hover .delete-btn { opacity: 1; }
+  /* Reveal the row controls on hover OR focus-within. focus-within fires the moment
+     the card (tabindex=0) or anything inside it gains focus, so keyboard users see the
+     controls before reaching them — not only once a button itself is focused. C5. */
+  .card:hover .delete-btn,
+  .card:focus-within .delete-btn { opacity: 1; }
   .content { flex: 1; min-width: 0; }
   .title {
     display: block; width: 100%;
@@ -135,7 +139,8 @@
     border-radius: var(--radius-sm); flex-shrink: 0;
     background: transparent; border: none; cursor: pointer;
   }
-  .card:hover .read-toggle { opacity: 0.6; }
+  .card:hover .read-toggle,
+  .card:focus-within .read-toggle { opacity: 0.6; }
   .read-toggle:hover { opacity: 1 !important; color: var(--color-accent); background: var(--color-surface-overlay); }
   .read-toggle:focus-visible { opacity: 1; outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
   .delete-btn {
@@ -146,4 +151,11 @@
   }
   .delete-btn:hover { color: var(--color-destructive); background: var(--color-surface-overlay); }
   .delete-btn:focus-visible { opacity: 1; outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
+
+  /* Touch devices can't hover, so the controls would never appear. Keep them faintly
+     visible there (mouse users keep the clean hover-reveal above). C5. */
+  @media (hover: none) {
+    .card .read-toggle { opacity: 0.55; }
+    .card .delete-btn { opacity: 0.55; }
+  }
 </style>
