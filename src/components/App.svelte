@@ -17,6 +17,14 @@
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg?.type === "link-saved") loadLinks();
     });
+    // Stay fresh when storage changes from elsewhere (context-menu save, another
+    // device's sync). Reload only the affected slice; reloads are read-only, so
+    // reacting to our own writes is harmless and idempotent — no write loop.
+    chrome.storage.onChanged.addListener((changes) => {
+      const keys = Object.keys(changes);
+      if (keys.some(k => k === "isl_links" || k.startsWith("isl_links_"))) loadLinks();
+      if (keys.includes("isl_settings")) loadSettings();
+    });
   });
 </script>
 

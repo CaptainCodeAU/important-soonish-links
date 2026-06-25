@@ -1,9 +1,13 @@
-import type { SavedLink, AppSettings } from "../types";
+import type { SavedLink } from "../types";
 
 const CHUNK_PREFIX = "isl_links_";
 const LINKS_KEY = "isl_links";
-const SETTINGS_KEY = "isl_settings";
 
+// chrome.storage.sync hard limits (bytes).
+export const SYNC_ITEM_LIMIT = 8192; // QUOTA_BYTES_PER_ITEM
+const CHUNK_SIZE = 7500; // headroom under the per-item limit
+
+/** Reassemble chunked links from a full sync.get(null) result. */
 export async function readChunked(allData: Record<string, unknown>): Promise<SavedLink[]> {
   const chunks: SavedLink[][] = [];
   let i = 0;
@@ -11,29 +15,42 @@ export async function readChunked(allData: Record<string, unknown>): Promise<Sav
     chunks.push(allData[`${CHUNK_PREFIX}${i}`] as SavedLink[]);
     i++;
   }
-  if (chunks.length === 0) return [];
   return chunks.flat();
 }
 
-export async function writeChunked(links: SavedLink[], settings: AppSettings): Promise<void> {
-  const chunkSize = 7500;
+/** Remove every link-chunk key from sync storage. */
+export async function clearChunked(): Promise<void> {
+  const existing = await chrome.storage.sync.get(null);
+  const chunkKeys = Object.keys(existing).filter(k => k.startsWith(CHUNK_PREFIX));
+  if (chunkKeys.length > 0) await chrome.storage.sync.remove(chunkKeys);
+}
+
+/**
+ * Write links to chrome.storage.sync, splitting into chunks when the payload
+ * exceeds a single item's limit. Throws on quota/write failure — the caller is
+ * responsible for falling back to local storage.
+ */
+export async function writeChunkedToSync(links: SavedLink[]): Promise<void> {
   const serialized = JSON.stringify(links);
 
-  if (serialized.length <= chunkSize) {
-    try {
-      await chrome.storage.sync.set({ [LINKS_KEY]: links });
-    } catch {
-      await localFallback(links, settings);
-    }
+  // Small enough for a single key: store directly, clearing any stale chunks.
+  if (serialized.length <= CHUNK_SIZE) {
+    await clearChunked();
+    await chrome.storage.sync.set({ [LINKS_KEY]: links });
     return;
   }
 
+  // Otherwise pack links into size-bounded chunks.
   const chunks: SavedLink[][] = [];
   let current: SavedLink[] = [];
   let currentSize = 2;
   for (const link of links) {
     const itemSize = JSON.stringify(link).length + 1;
-    if (currentSize + itemSize > chunkSize && current.length > 0) {
+    // A single link larger than one item can never be stored in sync.
+    if (itemSize > SYNC_ITEM_LIMIT) {
+      throw new Error("Link exceeds the per-item sync quota");
+    }
+    if (currentSize + itemSize > CHUNK_SIZE && current.length > 0) {
       chunks.push(current);
       current = [];
       currentSize = 2;
@@ -46,26 +63,10 @@ export async function writeChunked(links: SavedLink[], settings: AppSettings): P
   const toSet: Record<string, unknown> = {};
   chunks.forEach((chunk, i) => { toSet[`${CHUNK_PREFIX}${i}`] = chunk; });
 
-  try {
-    const existing = await chrome.storage.sync.get(null);
-    const oldChunkKeys = Object.keys(existing).filter(k => k.startsWith(CHUNK_PREFIX));
-    if (oldChunkKeys.length > 0) await chrome.storage.sync.remove(oldChunkKeys);
-    await chrome.storage.sync.remove(LINKS_KEY);
-    await chrome.storage.sync.set(toSet);
-  } catch {
-    await localFallback(links, settings);
-  }
-}
-
-export async function clearChunked(): Promise<void> {
+  // Replace prior state (single key + any old chunks) atomically-ish.
   const existing = await chrome.storage.sync.get(null);
-  const chunkKeys = Object.keys(existing).filter(k => k.startsWith(CHUNK_PREFIX));
-  if (chunkKeys.length > 0) await chrome.storage.sync.remove(chunkKeys);
-}
-
-async function localFallback(links: SavedLink[], settings: AppSettings): Promise<void> {
-  await chrome.storage.local.set({ [LINKS_KEY]: links });
-  await chrome.storage.local.set({
-    [SETTINGS_KEY]: { ...settings, syncEnabled: false },
-  });
+  const oldChunkKeys = Object.keys(existing).filter(k => k.startsWith(CHUNK_PREFIX));
+  if (oldChunkKeys.length > 0) await chrome.storage.sync.remove(oldChunkKeys);
+  await chrome.storage.sync.remove(LINKS_KEY);
+  await chrome.storage.sync.set(toSet);
 }

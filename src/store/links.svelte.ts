@@ -1,5 +1,6 @@
 import type { SavedLink } from "../types";
 import { readLinks, writeLinks } from "../storage";
+import { settingsState } from "./settings.svelte";
 import { pushToast } from "./toasts.svelte";
 import { COPY } from "../lib/copy";
 
@@ -10,7 +11,12 @@ export const linksState = $state({
 
 async function persist(items: SavedLink[]): Promise<void> {
   try {
-    await writeLinks(items);
+    const result = await writeLinks(items);
+    if (result.downgraded) {
+      // A sync write exceeded quota and was kept locally; reflect sync turning off.
+      settingsState.syncEnabled = false;
+      pushToast(COPY.SYNC_QUOTA_EXCEEDED);
+    }
   } catch {
     pushToast(COPY.STORAGE_WRITE_FAILED);
   }

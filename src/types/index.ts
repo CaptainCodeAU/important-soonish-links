@@ -25,6 +25,8 @@ export type SortOrder =
   | "color"
   | "tag";
 
+export type SyncMode = "links-only" | "everything";
+
 export interface SavedLink {
   id: string;
   title: string;
@@ -46,6 +48,7 @@ export interface AppSettings {
   theme: "light" | "dark" | "system";
   sortOrder: SortOrder;
   syncEnabled: boolean;
+  syncMode: SyncMode;
   showBadgeCount: boolean;
 }
 
@@ -65,6 +68,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: "system",
   sortOrder: "recent",
   syncEnabled: false,
+  syncMode: "links-only",
   showBadgeCount: true,
 };
 

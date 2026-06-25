@@ -4,6 +4,7 @@
   import { pushToast } from "../store/toasts.svelte";
   import { COPY, fmt } from "../lib/copy";
   import { clearAll, writeLinks } from "../storage";
+  import { sanitizeLinks } from "../lib/sanitize";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import type { SavedLink, SortOrder } from "../types";
 
@@ -53,21 +54,27 @@
     if (!file) return;
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text) as SavedLink[];
+      const parsed = JSON.parse(text);
       if (!Array.isArray(parsed)) throw new Error("Not an array");
 
-      const valid = parsed.filter(l => l.id && l.url && l.title);
+      // sanitizeLinks coerces colors/tags and drops entries with invalid URLs.
+      const valid = sanitizeLinks(parsed);
       if (valid.length === 0) throw new Error("No valid links");
+      const invalidCount = parsed.length - valid.length;
 
       let items: SavedLink[];
       if (mode === "replace") {
         items = valid;
-        pushToast(COPY.IMPORT_REPLACE_SUCCESS);
+        if (invalidCount > 0) {
+          pushToast(fmt(COPY.IMPORT_PARTIAL, { n: valid.length, m: invalidCount }));
+        } else {
+          pushToast(COPY.IMPORT_REPLACE_SUCCESS);
+        }
       } else {
         const existing = new Set(linksState.items.map(l => l.url));
         const newOnes = valid.filter(l => !existing.has(l.url));
         items = [...linksState.items, ...newOnes];
-        const skipped = valid.length - newOnes.length;
+        const skipped = (valid.length - newOnes.length) + invalidCount;
         if (skipped > 0) {
           pushToast(fmt(COPY.IMPORT_PARTIAL, { n: newOnes.length, m: skipped }));
         } else {
@@ -170,6 +177,24 @@
           <span class="slider"></span>
         </label>
       </div>
+
+      {#if settingsState.syncEnabled}
+        <div class="sync-mode">
+          <h3 class="sync-mode-label">{COPY.SETTINGS_SYNC_MODE}</h3>
+          <div class="toggle-group">
+            {#each (["links-only", "everything"] as const) as m (m)}
+              <button
+                class="toggle-btn"
+                class:active={settingsState.syncMode === m}
+                onclick={() => updateSettings({ syncMode: m })}
+              >{m === "links-only" ? COPY.SYNC_MODE_LINKS : COPY.SYNC_MODE_EVERYTHING}</button>
+            {/each}
+          </div>
+          <p class="section-desc">
+            {settingsState.syncMode === "links-only" ? COPY.SYNC_MODE_LINKS_DESC : COPY.SYNC_MODE_EVERYTHING_DESC}
+          </p>
+        </div>
+      {/if}
     </section>
 
     <!-- Badge count -->
@@ -242,6 +267,8 @@
   .btn-outline:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
   .btn-destructive-outline:hover { border-color: var(--color-destructive); color: var(--color-destructive); }
   .row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .sync-mode { margin-top: 10px; }
+  .sync-mode-label { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 6px; }
   .toggle-group { display: flex; gap: 2px; }
   .toggle-btn {
     padding: 4px 10px; font-size: 12px; border-radius: var(--radius-sm);
