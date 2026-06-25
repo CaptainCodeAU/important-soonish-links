@@ -65,6 +65,21 @@ describe("sanitizeLink — defaults & optionals", () => {
   });
 });
 
+describe("sanitizeLink — favicon hardening (B4)", () => {
+  it("drops an http favicon", () => {
+    expect(sanitizeLink({ ...base, favicon: "http://a.com/f.ico" })?.favicon).toBeUndefined();
+  });
+  it("drops a javascript: favicon", () => {
+    expect(sanitizeLink({ ...base, favicon: "javascript:alert(1)" })?.favicon).toBeUndefined();
+  });
+  it("keeps an https favicon", () => {
+    expect(sanitizeLink({ ...base, favicon: "https://a.com/f.ico" })?.favicon).toBe("https://a.com/f.ico");
+  });
+  it("keeps a data:image favicon", () => {
+    expect(sanitizeLink({ ...base, favicon: "data:image/png;base64,AAAA" })?.favicon).toBe("data:image/png;base64,AAAA");
+  });
+});
+
 describe("sanitizeLinks", () => {
   it("filters out invalid entries", () => {
     const out = sanitizeLinks([

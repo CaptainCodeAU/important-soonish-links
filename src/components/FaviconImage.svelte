@@ -1,14 +1,18 @@
 <script lang="ts">
   import { NOTION_PALETTE } from "../lib/colors";
+  import { isSafeFaviconUrl } from "../lib/utils";
   import type { ColorId } from "../types";
 
   let { src, hostname, color }: { src?: string; hostname: string; color: ColorId } = $props();
   let failed = $state(false);
+  // Defense-in-depth: only ever bind a safe favicon URL to <img>, even though the
+  // sanitize boundary already drops unsafe ones. Unsafe/empty -> letter-avatar fallback.
+  const safeSrc = $derived(src && isSafeFaviconUrl(src) ? src : undefined);
 </script>
 
-{#if src && !failed}
+{#if safeSrc && !failed}
   <img
-    {src}
+    src={safeSrc}
     alt=""
     class="favicon"
     onerror={() => (failed = true)}

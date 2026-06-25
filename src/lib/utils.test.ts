@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateUrl, generateId, hostnameFromUrl } from "./utils";
+import { validateUrl, generateId, hostnameFromUrl, isSafeFaviconUrl } from "./utils";
 
 describe("validateUrl", () => {
   it("accepts http URL", () => expect(validateUrl("http://example.com")).toBe(true));
@@ -19,4 +19,13 @@ describe("hostnameFromUrl", () => {
   it("extracts hostname from https URL", () => {
     expect(hostnameFromUrl("https://www.example.com/path")).toBe("www.example.com");
   });
+});
+
+describe("isSafeFaviconUrl (B4)", () => {
+  it("accepts https", () => expect(isSafeFaviconUrl("https://a.com/f.ico")).toBe(true));
+  it("accepts data:image", () => expect(isSafeFaviconUrl("data:image/png;base64,AAAA")).toBe(true));
+  it("rejects http (tracking beacon)", () => expect(isSafeFaviconUrl("http://a.com/f.ico")).toBe(false));
+  it("rejects javascript:", () => expect(isSafeFaviconUrl("javascript:alert(1)")).toBe(false));
+  it("rejects data:text/html", () => expect(isSafeFaviconUrl("data:text/html,<x>")).toBe(false));
+  it("rejects empty string", () => expect(isSafeFaviconUrl("")).toBe(false));
 });
