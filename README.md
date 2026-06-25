@@ -25,7 +25,7 @@ A Chrome extension for saving important links you absolutely intend to read. Pas
 |-------|------------|
 | UI | Svelte 5 (runes) |
 | Language | TypeScript |
-| Build | Vite + @crxjs/vite-plugin + @sveltejs/vite-plugin-svelte |
+| Build | Vite + @sveltejs/vite-plugin-svelte + a small custom MV3 manifest plugin |
 | Styling | CSS custom properties + Svelte scoped styles |
 | State | Svelte 5 rune-based stores (`$state`, `$derived`, `$effect`) |
 | Testing | Vitest + @testing-library/svelte |
@@ -48,18 +48,28 @@ pnpm install
 
 ### Development
 
+The extension builds to `dist/`, which you load unpacked in Chrome. There is **no
+dev-server hot-reload** (the build is plain Vite, not a dev server), so the loop is
+**build → reload**:
+
 ```sh
-pnpm dev
+pnpm build                     # one-off build into dist/
+# or rebuild automatically on every save:
+pnpm exec vite build --watch
 ```
 
-Then load the extension in Chrome:
+Load it in Chrome (first time only):
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked**
 4. Select the `dist/` folder
 
-Vite provides HMR — changes rebuild automatically.
+After each rebuild, click the **reload ↻** icon on the extension card to pick up changes.
+The fixed `key` in `manifest.json` keeps the extension ID stable across reloads.
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the build internals and the
+dependency-pinning rationale (the supply-chain constraints behind several pinned versions).
 
 ### Build
 
