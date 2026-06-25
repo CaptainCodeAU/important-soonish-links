@@ -14,11 +14,29 @@ describe("sanitizeLink — color/tag coercion (A1)", () => {
   it("keeps a valid color", () => {
     expect(sanitizeLink({ ...base, color: "blue" })?.color).toBe("blue");
   });
-  it("drops an invalid tag", () => {
-    expect(sanitizeLink({ ...base, tag: "nope" })?.tag).toBeUndefined();
+  it("drops an invalid legacy tag (empty tags)", () => {
+    expect(sanitizeLink({ ...base, tag: "nope" })?.tags).toEqual([]);
   });
-  it("keeps a valid tag", () => {
-    expect(sanitizeLink({ ...base, tag: "work" })?.tag).toBe("work");
+  it("migrates a valid legacy tag into tags[]", () => {
+    expect(sanitizeLink({ ...base, tag: "work" })?.tags).toEqual(["work"]);
+  });
+});
+
+describe("sanitizeLink — multi-tag (v2 model)", () => {
+  it("defaults to an empty tags array", () => {
+    expect(sanitizeLink(base)?.tags).toEqual([]);
+  });
+  it("keeps multiple valid tags", () => {
+    expect(sanitizeLink({ ...base, tags: ["work", "personal"] })?.tags).toEqual(["work", "personal"]);
+  });
+  it("drops invalid ids and dedups", () => {
+    expect(sanitizeLink({ ...base, tags: ["work", "nope", "work", 5] })?.tags).toEqual(["work"]);
+  });
+  it("prefers tags[] over a legacy tag when both present", () => {
+    expect(sanitizeLink({ ...base, tags: ["personal"], tag: "work" })?.tags).toEqual(["personal"]);
+  });
+  it("ignores a non-array tags value", () => {
+    expect(sanitizeLink({ ...base, tags: "work" })?.tags).toEqual([]);
   });
 });
 

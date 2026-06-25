@@ -23,6 +23,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     title,
     url,
     color: "default",
+    tags: [],
     order: links.length,
     createdAt: now(),
     updatedAt: now(),

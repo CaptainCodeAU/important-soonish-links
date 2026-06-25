@@ -17,7 +17,7 @@ export function serializeMarkdown(links: SavedLink[]): string {
   const lines: string[] = [];
   const byTag = new Map<string, SavedLink[]>();
   for (const l of links) {
-    const key = l.tag ?? "other";
+    const key = l.tags[0] ?? "other";
     if (!byTag.has(key)) byTag.set(key, []);
     byTag.get(key)!.push(l);
   }

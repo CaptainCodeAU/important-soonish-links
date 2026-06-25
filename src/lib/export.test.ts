@@ -4,7 +4,7 @@ import type { SavedLink } from "../types";
 
 function link(over: Partial<SavedLink>): SavedLink {
   return {
-    id: "1", title: "T", url: "https://a.com", color: "default",
+    id: "1", title: "T", url: "https://a.com", color: "default", tags: [],
     order: 0, createdAt: 0, updatedAt: 0, ...over,
   };
 }
@@ -33,7 +33,7 @@ describe("serializeMarkdown — injection safety (B2)", () => {
     expect(row).toBe("- [a\\] hijack \\[b](<https://a.com/p(q)>)");
   });
   it("groups by tag", () => {
-    const out = serializeMarkdown([link({ tag: "work" }), link({ id: "2" })]);
+    const out = serializeMarkdown([link({ tags: ["work"] }), link({ id: "2" })]);
     expect(out).toContain("## work");
     expect(out).toContain("## other");
   });

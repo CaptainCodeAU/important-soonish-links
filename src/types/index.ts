@@ -37,7 +37,9 @@ export interface SavedLink {
   favicon?: string;
   description?: string;
   color: ColorId;
-  tag?: TagId;
+  /** Zero or more category tags. Always present; [] = untagged. (Migrated from the
+   *  former single `tag?: TagId` — see sanitizeLink.) */
+  tags: TagId[];
   pinned?: boolean;
   notes?: string;
   isRead?: boolean;
@@ -67,7 +69,7 @@ export interface StorageData {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   theme: "system",
   sortOrder: "recent",
   syncEnabled: false,

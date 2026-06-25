@@ -1,34 +1,51 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { fade } from "svelte/transition";
   import { DEFAULT_TAGS, TAG_MAP } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
   import type { TagId } from "../types";
 
-  let { value, onChange }: { value?: TagId; onChange: (t: TagId | undefined) => void } = $props();
+  let { values, onToggle }: { values: TagId[]; onToggle: (t: TagId) => void } = $props();
   let open = $state(false);
   let dropEl: HTMLElement | undefined = $state();
   let triggerEl: HTMLElement | undefined = $state();
   let menuEl: HTMLElement | undefined = $state();
   let menuStyle = $state("");
 
-  function select(tag: TagId | undefined) { onChange(tag); open = false; }
+  const hasTags = $derived(values.length > 0);
+  // Trigger is colored by the first tag; the tooltip/aria-label lists them all.
+  const accent = $derived(hasTags ? NOTION_PALETTE[TAG_MAP[values[0]].accentColor].solid : undefined);
+  const labels = $derived(hasTags ? values.map(t => TAG_MAP[t].label).join(", ") : "Add tag");
 
-  function toggle() {
+  function toggleOpen() {
     if (open) { open = false; return; }
     if (!triggerEl) return;
     const rect = triggerEl.getBoundingClientRect();
-    const menuHeight = (DEFAULT_TAGS.length + 1) * 30 + 8;
+    const menuHeight = DEFAULT_TAGS.length * 32 + 8;
     const spaceAbove = rect.top;
     const spaceBelow = window.innerHeight - rect.bottom;
-    // Prefer opening ABOVE the trigger: this is a popup within the small extension
-    // popup, so the tall tag menu sits better above the row than hanging off the
-    // bottom. Fall back to below only when there isn't room above.
+    // Prefer opening above (tall menu inside a short popup); fall back to below.
     if (spaceAbove >= menuHeight || spaceAbove > spaceBelow) {
       menuStyle = `position:fixed;left:${rect.left}px;bottom:${window.innerHeight - rect.top + 6}px;`;
     } else {
       menuStyle = `position:fixed;left:${rect.left}px;top:${rect.bottom + 6}px;`;
     }
     open = true;
+    tick().then(() => menuEl?.querySelector<HTMLElement>("[role=option]")?.focus());
+  }
+
+  function close(returnFocus = true) {
+    open = false;
+    if (returnFocus) triggerEl?.focus();
+  }
+
+  function onMenuKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") { e.preventDefault(); close(); return; }
+    const opts = menuEl ? Array.from(menuEl.querySelectorAll<HTMLElement>("[role=option]")) : [];
+    if (!opts.length) return;
+    const i = opts.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); opts[Math.min(i + 1, opts.length - 1)]?.focus(); }
+    if (e.key === "ArrowUp")   { e.preventDefault(); opts[Math.max(i - 1, 0)]?.focus(); }
   }
 
   function handleWindowClick(e: MouseEvent) {
@@ -44,44 +61,37 @@
 <div class="tag-wrap" bind:this={dropEl}>
   <button
     class="tag-trigger"
-    class:tagged={value}
+    class:tagged={hasTags}
     bind:this={triggerEl}
-    onclick={toggle}
-    style:color={value ? NOTION_PALETTE[TAG_MAP[value].accentColor].solid : undefined}
-    aria-label={value ? `Tag: ${TAG_MAP[value].label}` : "Add tag"}
-    title={value ? TAG_MAP[value].label : "Add tag"}
+    onclick={toggleOpen}
+    style:color={accent}
+    aria-label={hasTags ? `Tags: ${labels}` : "Add tag"}
+    title={labels}
     aria-expanded={open}
     aria-haspopup="listbox"
   >
-    <!-- Always a fixed-size icon so the title column never shifts row-to-row.
-         Filled + accent-colored when a tag is set; muted outline when not. -->
+    <!-- Fixed-size icon so the title column never shifts. Filled + colored (by first
+         tag) when the link has any tag; muted outline when untagged. -->
     <svg
       class="tag-icon" width="15" height="15" viewBox="0 0 24 24"
-      fill={value ? "currentColor" : "none"} stroke="currentColor" stroke-width="2"
+      fill={hasTags ? "currentColor" : "none"} stroke="currentColor" stroke-width="2"
     >
       <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
       <line x1="7" y1="7" x2="7.01" y2="7"/>
     </svg>
   </button>
   {#if open}
-    <ul class="dropdown" role="listbox" aria-label="Card tag" style={menuStyle} bind:this={menuEl} transition:fade={{ duration: 200 }}>
-      <li>
-        <button role="option" aria-selected={value === undefined} onclick={() => select(undefined)} class="option">
-          No tag
-        </button>
-      </li>
+    <ul
+      class="dropdown" role="listbox" aria-multiselectable="true" aria-label="Card tags"
+      tabindex="-1" style={menuStyle} bind:this={menuEl} onkeydown={onMenuKeydown}
+      transition:fade={{ duration: 150 }}
+    >
       {#each DEFAULT_TAGS as tag (tag.id)}
+        {@const on = values.includes(tag.id)}
         <li>
-          <button
-            role="option"
-            aria-selected={value === tag.id}
-            onclick={() => select(tag.id)}
-            class="option"
-          >
-            <span
-              class="tag-dot"
-              style:background={NOTION_PALETTE[tag.accentColor].solid}
-            ></span>
+          <button role="option" aria-selected={on} onclick={() => onToggle(tag.id)} class="option">
+            <span class="check" class:on>{on ? "✓" : ""}</span>
+            <span class="tag-dot" style:background={NOTION_PALETTE[tag.accentColor].solid}></span>
             {tag.label}
           </button>
         </li>
@@ -93,7 +103,7 @@
 <style>
   .tag-wrap { position: relative; flex-shrink: 0; }
   /* Fixed footprint regardless of tagged/untagged so the favicon + title column
-     stays aligned across every row (no width jump from a label pill). */
+     stays aligned across every row (no width jump). */
   .tag-trigger {
     display: flex; align-items: center; justify-content: center;
     width: 16px; height: 16px; flex-shrink: 0;
@@ -106,7 +116,7 @@
   .tag-trigger:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
   .tag-icon { display: block; }
   .dropdown {
-    min-width: 140px;
+    min-width: 150px;
     background: var(--color-surface-base);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -118,8 +128,8 @@
   }
   .option {
     width: 100%;
-    display: flex; align-items: center; gap: 6px;
-    padding: 5px 8px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
     font-size: 12px;
     border-radius: var(--radius-sm);
     color: var(--color-text-primary);
@@ -131,5 +141,12 @@
   .option:hover { background: var(--color-surface-overlay); }
   .option[aria-selected="true"] { font-weight: 600; }
   .option:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -1px; }
+  .check {
+    width: 14px; height: 14px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--color-border-strong); border-radius: 3px;
+    font-size: 10px; color: #fff; line-height: 1;
+  }
+  .check.on { background: var(--color-accent); border-color: var(--color-accent); }
   .tag-dot { width: 8px; height: 8px; border-radius: var(--radius-full); flex-shrink: 0; }
 </style>

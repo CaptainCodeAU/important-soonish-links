@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS } from "../types";
 import type { SavedLink } from "../types";
 
 const link = (id: string): SavedLink => ({
-  id, title: `L${id}`, url: `https://e.com/${id}`, color: "default",
+  id, title: `L${id}`, url: `https://e.com/${id}`, color: "default", tags: [],
   order: 0, createdAt: 1, updatedAt: 1,
 });
 

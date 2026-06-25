@@ -3,7 +3,7 @@ import { linksState, loadLinks, addLink, deleteLink, restoreLink } from "./links
 import type { SavedLink } from "../types";
 
 const makeLink = (id: string, url: string): SavedLink => ({
-  id, title: `Link ${id}`, url, color: "default",
+  id, title: `Link ${id}`, url, color: "default", tags: [],
   order: 0, createdAt: Date.now(), updatedAt: Date.now(),
 });
 

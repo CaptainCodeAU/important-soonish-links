@@ -3,66 +3,52 @@ import { render, screen, fireEvent } from "@testing-library/svelte";
 import { tick } from "svelte";
 import TagDropdown from "./TagDropdown.svelte";
 
-describe("TagDropdown", () => {
-  it("renders the tag trigger button", () => {
-    const onChange = vi.fn();
-    render(TagDropdown, { value: undefined, onChange });
-    expect(screen.getByLabelText("Add tag")).toBeTruthy();
+describe("TagDropdown (multi-select)", () => {
+  it("renders the trigger labelled 'Add tag' when empty", () => {
+    render(TagDropdown, { values: [], onToggle: vi.fn() });
+    expect(screen.getByRole("button", { name: "Add tag" })).toBeTruthy();
   });
 
-  it("dropdown is hidden by default", () => {
-    const onChange = vi.fn();
-    render(TagDropdown, { value: undefined, onChange });
+  it("menu is hidden by default", () => {
+    render(TagDropdown, { values: [], onToggle: vi.fn() });
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
-  it("shows dropdown with 7 options on click (6 tags + No tag)", async () => {
-    const onChange = vi.fn();
-    render(TagDropdown, { value: undefined, onChange });
-    await fireEvent.click(screen.getByLabelText("Add tag"));
+  it("opens a multi-select listbox of 6 tags on click", async () => {
+    render(TagDropdown, { values: [], onToggle: vi.fn() });
+    await fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
     await tick();
-    const options = screen.getAllByRole("option");
-    expect(options).toHaveLength(7);
+    expect(screen.getByRole("listbox").getAttribute("aria-multiselectable")).toBe("true");
+    expect(screen.getAllByRole("option")).toHaveLength(6);
   });
 
-  it("shows 'No tag' option first", async () => {
-    const onChange = vi.fn();
-    render(TagDropdown, { value: undefined, onChange });
-    await fireEvent.click(screen.getByLabelText("Add tag"));
+  it("calls onToggle with the clicked tag id", async () => {
+    const onToggle = vi.fn();
+    render(TagDropdown, { values: [], onToggle });
+    await fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
     await tick();
-    const options = screen.getAllByRole("option");
-    expect(options[0].textContent).toContain("No tag");
+    await fireEvent.click(screen.getAllByRole("option")[0]);
+    expect(onToggle).toHaveBeenCalledOnce();
+    expect(typeof onToggle.mock.calls[0][0]).toBe("string");
   });
 
-  it("calls onChange with tagId when a tag is selected", async () => {
-    const onChange = vi.fn();
-    render(TagDropdown, { value: undefined, onChange });
-    await fireEvent.click(screen.getByLabelText("Add tag"));
+  it("exposes assigned tags on the trigger and marks them selected", async () => {
+    render(TagDropdown, { values: ["work", "personal"], onToggle: vi.fn() });
+    expect(screen.getByRole("button", { name: /Tags: Work, Personal/ })).toBeTruthy();
+    await fireEvent.click(screen.getByRole("button", { name: /Tags:/ }));
     await tick();
-    const options = screen.getAllByRole("option");
-    await fireEvent.click(options[1]);
-    expect(onChange).toHaveBeenCalledOnce();
-    const [tagId] = onChange.mock.calls[0];
-    expect(tagId).toBeTruthy();
+    const selected = screen.getAllByRole("option").filter(
+      o => o.getAttribute("aria-selected") === "true"
+    );
+    expect(selected).toHaveLength(2);
   });
 
-  it("calls onChange with undefined when 'No tag' is selected", async () => {
-    const onChange = vi.fn();
-    render(TagDropdown, { value: "read-later" as const, onChange });
-    const trigger = screen.getByLabelText("Tag: Read later");
-    await fireEvent.click(trigger);
+  it("stays open after a selection (multi-select)", async () => {
+    render(TagDropdown, { values: [], onToggle: vi.fn() });
+    await fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
     await tick();
-    const noTag = screen.getByText("No tag");
-    await fireEvent.click(noTag);
-    expect(onChange).toHaveBeenCalledWith(undefined);
-  });
-
-  it("exposes the set tag via the trigger's accessible label (fixed-width icon, no pill)", () => {
-    const onChange = vi.fn();
-    render(TagDropdown, { value: "read-later" as const, onChange });
-    // The trigger is a fixed-size icon button; the tag is conveyed via aria-label/title
-    // (and accent color), not a variable-width text pill that would shift the row layout.
-    expect(screen.getByLabelText("Tag: Read later")).toBeTruthy();
-    expect(screen.queryByText("Read later")).toBeNull();
+    await fireEvent.click(screen.getAllByRole("option")[0]);
+    await tick();
+    expect(screen.queryByRole("listbox")).not.toBeNull();
   });
 });

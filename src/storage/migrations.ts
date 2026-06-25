@@ -1,7 +1,10 @@
 import type { StorageData } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 
-export const CURRENT_SCHEMA_VERSION = 1;
+// v2: links carry `tags: TagId[]` instead of a single `tag?: TagId`. The per-link
+// shape migration is performed by sanitizeLink on every read (the normalization point),
+// so no entry in `migrations` is needed; this constant just stamps settings.schemaVersion.
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export type MigrationFn = (data: Partial<StorageData>) => StorageData;
 

@@ -10,10 +10,25 @@ import { validateUrl, generateId, now, isSafeFaviconUrl } from "./utils";
  * Guarantees on the returned link:
  *  - url passes validateUrl (http/https only)
  *  - color is a known ColorId (falls back to DEFAULT_LINK_COLOR)
- *  - tag, when present, is a known TagId (otherwise dropped)
+ *  - tags is always an array of known TagIds (deduped); a legacy single `tag`
+ *    field is migrated into it, and unknown ids are dropped
  *  - favicon, when present, is a safe https:/data:image URL (otherwise dropped)
  *  - id/order/createdAt/updatedAt always present and well-typed
  */
+
+/** Coerce a raw `tags` array (and/or a legacy single `tag`) into validated, deduped TagIds. */
+function sanitizeTags(rawTags: unknown, legacyTag: unknown): TagId[] {
+  const out: TagId[] = [];
+  const add = (v: unknown) => {
+    if ((TAG_IDS as readonly string[]).includes(String(v)) && !out.includes(v as TagId)) {
+      out.push(v as TagId);
+    }
+  };
+  if (Array.isArray(rawTags)) rawTags.forEach(add);
+  else if (typeof legacyTag === "string") add(legacyTag); // migrate old single-tag links
+  return out;
+}
+
 export function sanitizeLink(raw: unknown): SavedLink | null {
   if (!raw || typeof raw !== "object") return null;
   const l = raw as Record<string, unknown>;
@@ -32,13 +47,13 @@ export function sanitizeLink(raw: unknown): SavedLink | null {
   const createdAt = typeof l.createdAt === "number" ? l.createdAt : ts;
   const updatedAt = typeof l.updatedAt === "number" ? l.updatedAt : createdAt;
   const order = typeof l.order === "number" ? l.order : 0;
+  const tags = sanitizeTags(l.tags, l.tag);
 
-  const link: SavedLink = { id, title, url, color, order, createdAt, updatedAt };
+  const link: SavedLink = { id, title, url, color, tags, order, createdAt, updatedAt };
 
   // Preserve optional fields only when present and well-typed.
   if (typeof l.favicon === "string" && isSafeFaviconUrl(l.favicon)) link.favicon = l.favicon;
   if (typeof l.description === "string") link.description = l.description;
-  if ((TAG_IDS as readonly string[]).includes(String(l.tag))) link.tag = l.tag as TagId;
   if (typeof l.pinned === "boolean") link.pinned = l.pinned;
   if (typeof l.notes === "string") link.notes = l.notes;
   if (typeof l.isRead === "boolean") link.isRead = l.isRead;

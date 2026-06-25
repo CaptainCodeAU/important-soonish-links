@@ -53,7 +53,7 @@ function sortLinks(links: SavedLink[], order: SortOrder): SavedLink[] {
     case "oldest":      return sorted.sort((a, b) => a.createdAt - b.createdAt);
     case "alphabetical":return sorted.sort((a, b) => a.title.localeCompare(b.title));
     case "color":       return sorted.sort((a, b) => a.color.localeCompare(b.color));
-    case "tag":         return sorted.sort((a, b) => (a.tag ?? "").localeCompare(b.tag ?? ""));
+    case "tag":         return sorted.sort((a, b) => (a.tags[0] ?? "").localeCompare(b.tags[0] ?? ""));
     default:            return sorted;
   }
 }
@@ -68,7 +68,9 @@ export function filteredLinks(): SavedLink[] {
   const hasColor = filtersState.activeColors.size > 0;
   const hasTag = filtersState.activeTags.size > 0;
   const colorMatch = (l: SavedLink) => filtersState.activeColors.has(l.color);
-  const tagMatch = (l: SavedLink) => l.tag !== undefined && filtersState.activeTags.has(l.tag);
+  // Pass A: a link matches the tag filter if it carries any active tag (OR over its tags).
+  // The within-tag All/Any toggle comes in Pass B.
+  const tagMatch = (l: SavedLink) => l.tags.some(t => filtersState.activeTags.has(t));
 
   if (hasColor || hasTag) {
     if (filtersState.matchMode === "any") {

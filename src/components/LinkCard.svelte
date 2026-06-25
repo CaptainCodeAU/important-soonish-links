@@ -56,8 +56,10 @@
     onChange={(c) => updateLink(link.id, { color: c })}
   />
   <TagDropdown
-    value={link.tag}
-    onChange={(t) => updateLink(link.id, { tag: t })}
+    values={link.tags}
+    onToggle={(t) => updateLink(link.id, {
+      tags: link.tags.includes(t) ? link.tags.filter(x => x !== t) : [...link.tags, t],
+    })}
   />
   <FaviconImage src={link.favicon} hostname={hostnameFromUrl(link.url)} color={link.color} />
   <div class="content">

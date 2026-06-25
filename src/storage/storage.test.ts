@@ -11,7 +11,7 @@ describe("storage round-trip", () => {
   it("writeLinks then readLinks returns identical array", async () => {
     const links = [
       { id: "1", title: "Test", url: "https://example.com", color: "default" as const,
-        order: 0, createdAt: 1000, updatedAt: 1000 },
+        tags: [], order: 0, createdAt: 1000, updatedAt: 1000 },
     ];
     await writeLinks(links);
     const result = await readLinks();

@@ -3,7 +3,7 @@ import { fuzzySearch } from "./search";
 import type { SavedLink } from "../types";
 
 const makeLink = (id: string, title: string, url: string): SavedLink => ({
-  id, title, url, color: "default", order: 0, createdAt: 0, updatedAt: 0,
+  id, title, url, color: "default", tags: [], order: 0, createdAt: 0, updatedAt: 0,
 });
 
 const links: SavedLink[] = [

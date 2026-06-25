@@ -7,16 +7,16 @@ import { linksState } from "./links.svelte";
 import { settingsState } from "./settings.svelte";
 import type { SavedLink } from "../types";
 
-const makeLink = (id: string, color: SavedLink["color"], tag?: SavedLink["tag"]): SavedLink => ({
+const makeLink = (id: string, color: SavedLink["color"], tags: SavedLink["tags"] = []): SavedLink => ({
   id, title: `Link ${id}`, url: `https://example.com/${id}`,
-  color, tag, order: 0, createdAt: 0, updatedAt: 0,
+  color, tags, order: 0, createdAt: 0, updatedAt: 0,
 });
 
 beforeEach(() => {
   linksState.items = [
-    makeLink("1", "blue", "work"),
-    makeLink("2", "green", "personal"),
-    makeLink("3", "blue", "personal"),
+    makeLink("1", "blue", ["work"]),
+    makeLink("2", "green", ["personal"]),
+    makeLink("3", "blue", ["personal"]),
   ];
   clearFilters();
   setMatchMode("all");
@@ -81,7 +81,7 @@ describe("reset paths", () => {
     toggleTag("work");
     expect(filteredLinks()).toHaveLength(1);
     linksState.items = linksState.items.map(l =>
-      l.tag === "work" ? { ...l, tag: undefined } : l
+      l.tags.includes("work") ? { ...l, tags: [] } : l
     );
     // List is now empty under the active filter...
     expect(filteredLinks()).toHaveLength(0);

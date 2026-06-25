@@ -10,6 +10,7 @@ const makeLink = (overrides?: Partial<SavedLink>): SavedLink => ({
   title: "Example Site",
   url: "https://example.com",
   color: "default",
+  tags: [],
   order: 0,
   createdAt: Date.now(),
   updatedAt: Date.now(),
