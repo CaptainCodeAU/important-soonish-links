@@ -3,7 +3,7 @@
   import { DEFAULT_TAGS } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
   import { filtersState, toggleTag, clearTags, setTagMatchMode } from "../store/filters.svelte";
-  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption } from "../lib/popover";
+  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption, trackViewport } from "../lib/popover";
   import { COPY } from "../lib/copy";
 
   let open = $state(false);
@@ -13,15 +13,26 @@
 
   const count = $derived(filtersState.activeTags.size);
 
-  function toggle() {
-    if (open) { open = false; return; }
+  function reposition() {
     if (!triggerEl) return;
     // The bar sits at the top of the popup, so the menu opens downward with room.
     menuStyle = placePopover(triggerEl.getBoundingClientRect(), { placement: "bottom", offset: 6 });
+  }
+
+  function toggle() {
+    if (open) { open = false; return; }
+    if (!triggerEl) return;
+    reposition();
     open = true;
     // Move focus into the menu so keyboard users can navigate immediately.
     focusFirstOption(menuEl);
   }
+
+  // Keep the menu pinned to its trigger while scrolling/resizing. C2.
+  $effect(() => {
+    if (!open) return;
+    return trackViewport(reposition);
+  });
 
   function close(returnFocus = true) {
     open = false;

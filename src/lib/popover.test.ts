@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { placePopover, clickedOutside, rovingKeydown, focusFirstOption } from "./popover";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { placePopover, clickedOutside, rovingKeydown, focusFirstOption, trackViewport } from "./popover";
 
 describe("placePopover", () => {
   const anchor = { left: 10, top: 100, bottom: 120 };
@@ -166,5 +166,32 @@ describe("focusFirstOption", () => {
 
   it("is a no-op when the container is undefined", async () => {
     await expect(focusFirstOption(undefined)).resolves.toBeUndefined();
+  });
+});
+
+describe("trackViewport", () => {
+  it("listens to scroll (capture) + resize and the disposer removes both", () => {
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
+    const handler = vi.fn();
+    const stop = trackViewport(handler);
+    expect(add).toHaveBeenCalledWith("scroll", handler, true);
+    expect(add).toHaveBeenCalledWith("resize", handler);
+    stop();
+    expect(remove).toHaveBeenCalledWith("scroll", handler, true);
+    expect(remove).toHaveBeenCalledWith("resize", handler);
+    add.mockRestore();
+    remove.mockRestore();
+  });
+
+  it("invokes the handler on scroll and resize, and stops after dispose", () => {
+    const handler = vi.fn();
+    const stop = trackViewport(handler);
+    window.dispatchEvent(new Event("scroll"));
+    window.dispatchEvent(new Event("resize"));
+    expect(handler).toHaveBeenCalledTimes(2);
+    stop();
+    window.dispatchEvent(new Event("resize"));
+    expect(handler).toHaveBeenCalledTimes(2);
   });
 });

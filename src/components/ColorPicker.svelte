@@ -1,6 +1,6 @@
 <script lang="ts">
   import { NOTION_PALETTE } from "../lib/colors";
-  import { placePopover, clickedOutside } from "../lib/popover";
+  import { placePopover, clickedOutside, trackViewport } from "../lib/popover";
   import { COLOR_IDS } from "../types";
   import type { ColorId } from "../types";
 
@@ -35,16 +35,28 @@
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = undefined; }
   }
 
-  function openPicker() {
-    cancelClose();
+  function reposition() {
     if (!dotEl) return;
     swatchStyle = placePopover(dotEl.getBoundingClientRect(), {
       placement: "auto-bottom",
       offset: 4,
       panelHeight: 40,
     });
+  }
+
+  function openPicker() {
+    cancelClose();
+    if (!dotEl) return;
+    reposition();
     open = true;
   }
+
+  // Keep the swatches pinned to the dot while the list scrolls or the window
+  // resizes; the disposer detaches on close/unmount. C2.
+  $effect(() => {
+    if (!open) return;
+    return trackViewport(reposition);
+  });
 
   function handleWindowClick(e: MouseEvent) {
     if (open && clickedOutside(e, [pickerEl, swatchesEl])) open = false;

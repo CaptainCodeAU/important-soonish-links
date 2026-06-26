@@ -138,3 +138,18 @@ export async function focusFirstOption(
   await tick();
   container?.querySelector<HTMLElement>(selector)?.focus();
 }
+
+/**
+ * While a popover is open, keep it pinned to its trigger: re-run `handler` (which
+ * recomputes placement) on scroll or resize. Scroll uses capture (true) because
+ * scroll events don't bubble and the usual scroller is the popup's inner list, not
+ * the window. Returns a disposer that removes both listeners.
+ */
+export function trackViewport(handler: () => void): () => void {
+  window.addEventListener("scroll", handler, true);
+  window.addEventListener("resize", handler);
+  return () => {
+    window.removeEventListener("scroll", handler, true);
+    window.removeEventListener("resize", handler);
+  };
+}

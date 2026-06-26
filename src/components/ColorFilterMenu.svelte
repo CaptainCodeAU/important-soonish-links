@@ -3,7 +3,7 @@
   import { NOTION_PALETTE } from "../lib/colors";
   import { COLOR_IDS } from "../types";
   import { filtersState, toggleColor, clearColors } from "../store/filters.svelte";
-  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption } from "../lib/popover";
+  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption, trackViewport } from "../lib/popover";
   import { COPY } from "../lib/copy";
 
   let open = $state(false);
@@ -13,14 +13,25 @@
 
   const count = $derived(filtersState.activeColors.size);
 
+  function reposition() {
+    if (!triggerEl) return;
+    menuStyle = placePopover(triggerEl.getBoundingClientRect(), { placement: "bottom", offset: 6 });
+  }
+
   function toggle() {
     if (open) { open = false; return; }
     if (!triggerEl) return;
-    menuStyle = placePopover(triggerEl.getBoundingClientRect(), { placement: "bottom", offset: 6 });
+    reposition();
     open = true;
     // Move focus into the menu so keyboard users can navigate immediately.
     focusFirstOption(menuEl);
   }
+
+  // Keep the menu pinned to its trigger while scrolling/resizing. C2.
+  $effect(() => {
+    if (!open) return;
+    return trackViewport(reposition);
+  });
 
   function close(returnFocus = true) {
     open = false;

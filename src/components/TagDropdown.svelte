@@ -2,7 +2,7 @@
   import { fade } from "svelte/transition";
   import { DEFAULT_TAGS, TAG_MAP } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
-  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption } from "../lib/popover";
+  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption, trackViewport } from "../lib/popover";
   import type { TagId } from "../types";
 
   let { values, onToggle }: { values: TagId[]; onToggle: (t: TagId) => void } = $props();
@@ -17,8 +17,7 @@
   const accent = $derived(hasTags ? NOTION_PALETTE[TAG_MAP[values[0]].accentColor].solid : undefined);
   const labels = $derived(hasTags ? values.map(t => TAG_MAP[t].label).join(", ") : "Add tag");
 
-  function toggleOpen() {
-    if (open) { open = false; return; }
+  function reposition() {
     if (!triggerEl) return;
     // Prefer opening above (tall menu inside a short popup); fall back to below.
     const menuHeight = DEFAULT_TAGS.length * 32 + 8;
@@ -27,9 +26,22 @@
       offset: 6,
       panelHeight: menuHeight,
     });
+  }
+
+  function toggleOpen() {
+    if (open) { open = false; return; }
+    if (!triggerEl) return;
+    reposition();
     open = true;
     focusFirstOption(menuEl);
   }
+
+  // Keep the menu pinned to its trigger while the list scrolls or the window
+  // resizes; the disposer detaches on close/unmount. C2.
+  $effect(() => {
+    if (!open) return;
+    return trackViewport(reposition);
+  });
 
   function close(returnFocus = true) {
     open = false;
