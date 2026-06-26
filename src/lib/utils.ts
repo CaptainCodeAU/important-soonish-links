@@ -14,10 +14,10 @@ export function validateUrl(url: string): boolean {
 
 /**
  * Canonical form of a URL for **duplicate comparison only** (never stored — links keep
- * their original url for display/open). Lowercases the host, drops a leading `www.`, a
- * single trailing slash, and the hash; preserves the query string. Deliberately does NOT
- * unify http/https — treating those as the same page is surprising, so they stay distinct.
- * Falls back to a trimmed string for non-URL input. D6.
+ * their original url for display/open). Lowercases the host, drops a leading `www.` and a
+ * single trailing slash; PRESERVES the query AND the #hash so distinct SPA hash-routes and
+ * document anchors stay savable. Deliberately does NOT unify http/https. Falls back to a
+ * trimmed string for non-URL input. D6 (hash kept per code review).
  */
 export function normalizeUrl(url: string): string {
   try {
@@ -25,10 +25,19 @@ export function normalizeUrl(url: string): string {
     const host = u.hostname.replace(/^www\./i, "");
     let path = u.pathname;
     if (path.endsWith("/")) path = path.slice(0, -1); // "/a/" -> "/a", "/" -> ""
-    return `${u.protocol}//${host}${u.port ? ":" + u.port : ""}${path}${u.search}`;
+    return `${u.protocol}//${host}${u.port ? ":" + u.port : ""}${path}${u.search}${u.hash}`;
   } catch {
     return url.trim();
   }
+}
+
+/**
+ * True if `url` already exists in `links` under normalized comparison. The single source
+ * of the dedup rule — hoists the target normalization out of the loop. #13.
+ */
+export function containsUrl(links: readonly { url: string }[], url: string): boolean {
+  const target = normalizeUrl(url);
+  return links.some(l => normalizeUrl(l.url) === target);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateUrl, generateId, hostnameFromUrl, isSafeFaviconUrl, normalizeUrl } from "./utils";
+import { validateUrl, generateId, hostnameFromUrl, isSafeFaviconUrl, normalizeUrl, containsUrl } from "./utils";
 
 describe("validateUrl", () => {
   it("accepts http URL", () => expect(validateUrl("http://example.com")).toBe(true));
@@ -35,11 +35,22 @@ describe("normalizeUrl (D6)", () => {
     expect(normalizeUrl("https://a.com/")).toBe(normalizeUrl("https://a.com")));
   it("lowercases the host", () => expect(normalizeUrl("https://A.COM/x")).toBe("https://a.com/x"));
   it("drops a leading www.", () => expect(normalizeUrl("https://www.a.com")).toBe("https://a.com"));
-  it("strips the hash", () => expect(normalizeUrl("https://a.com/p#frag")).toBe("https://a.com/p"));
   it("preserves the query string", () =>
     expect(normalizeUrl("https://a.com/s?q=1")).toBe("https://a.com/s?q=1"));
+  it("preserves the hash so distinct SPA routes stay savable", () =>
+    expect(normalizeUrl("https://a.com/p#a")).not.toBe(normalizeUrl("https://a.com/p#b")));
   it("does NOT unify http and https", () =>
     expect(normalizeUrl("http://a.com")).not.toBe(normalizeUrl("https://a.com")));
   it("falls back to a trimmed string for non-URLs", () =>
     expect(normalizeUrl("  not a url  ")).toBe("not a url"));
+});
+
+describe("containsUrl (#13)", () => {
+  const links = [{ url: "https://example.com/" }];
+  it("matches a normalized variant", () =>
+    expect(containsUrl(links, "https://www.example.com")).toBe(true));
+  it("does not match a distinct url", () =>
+    expect(containsUrl(links, "https://other.com")).toBe(false));
+  it("treats distinct hashes as distinct", () =>
+    expect(containsUrl([{ url: "https://a.com/#/x" }], "https://a.com/#/y")).toBe(false));
 });
