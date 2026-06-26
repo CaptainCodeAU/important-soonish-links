@@ -43,4 +43,25 @@ describe("SettingsView replace-import (D1)", () => {
     expect(screen.getByRole("alertdialog")).toBeTruthy();
     expect(linksState.items.some(l => l.id === "keep")).toBe(true);
   });
+
+  it("dedupes repeats within an imported file on merge (#4)", async () => {
+    linksState.items = [];
+    const { container } = render(SettingsView, { onBack: vi.fn() });
+    const mergeInput = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File(
+      [JSON.stringify([
+        { id: "a", url: "https://dup.com", title: "A", color: "default", tags: [], order: 0, createdAt: 1, updatedAt: 1 },
+        { id: "b", url: "https://www.dup.com/", title: "B", color: "default", tags: [], order: 0, createdAt: 1, updatedAt: 1 },
+      ])],
+      "links.json",
+      { type: "application/json" },
+    );
+    Object.defineProperty(mergeInput, "files", { value: [file], configurable: true });
+    await fireEvent.change(mergeInput);
+    await new Promise(r => setTimeout(r));
+    await new Promise(r => setTimeout(r));
+    await tick();
+    // Both entries normalize to the same URL → only one is imported.
+    expect(linksState.items).toHaveLength(1);
+  });
 });

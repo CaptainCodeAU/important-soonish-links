@@ -1,9 +1,9 @@
 <script lang="ts">
   import { settingsState, updateSettings } from "../store/settings.svelte";
-  import { linksState } from "../store/links.svelte";
+  import { linksState, replaceLinks } from "../store/links.svelte";
   import { pushToast } from "../store/toasts.svelte";
   import { COPY, fmt } from "../lib/copy";
-  import { clearAll, writeLinks } from "../storage";
+  import { clearAll } from "../storage";
   import { sanitizeLinks } from "../lib/sanitize";
   import { normalizeUrl } from "../lib/utils";
   import { serializeJson, serializeMarkdown, serializeHtml } from "../lib/export";
@@ -38,16 +38,22 @@
   }
 
   // ── Import ────────────────────────────────────────────────
-  // Write to storage FIRST, then swap in-memory state, so a failed write can't leave the
-  // UI showing links that were never persisted. Shared by merge + replace. D1/N2.
+  // Drop entries within the file that normalize to the same URL, keeping the first. #4
+  function dedupeByUrl(links: SavedLink[]): SavedLink[] {
+    const seen = new Set<string>();
+    return links.filter(l => {
+      const key = normalizeUrl(l.url);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  // Route through the store's replaceLinks so import gets the same write-before-swap AND
+  // sync-quota-downgrade handling as every other write path (no silent sync-off). #5/D1
   async function applyImport(items: SavedLink[], successToast: string): Promise<void> {
-    try {
-      await writeLinks(items);
-      linksState.items = items;
-      pushToast(successToast);
-    } catch {
-      pushToast(COPY.IMPORT_ERROR);
-    }
+    if (await replaceLinks(items)) pushToast(successToast);
+    else pushToast(COPY.IMPORT_ERROR);
   }
 
   async function handleImport(e: Event, mode: "merge" | "replace") {
@@ -67,13 +73,15 @@
 
       if (mode === "replace") {
         // Destructive — wipes existing links. Confirm before applying. D1.
-        pendingReplace = { items: valid, invalidCount };
+        // Dedupe within the file so a backup containing repeats doesn't create dupes. #4
+        pendingReplace = { items: dedupeByUrl(valid), invalidCount };
         showReplaceDialog = true;
         return;
       }
 
+      const deduped = dedupeByUrl(valid); // collapse repeats within the file too #4
       const existing = new Set(linksState.items.map(l => normalizeUrl(l.url)));
-      const newOnes = valid.filter(l => !existing.has(normalizeUrl(l.url)));
+      const newOnes = deduped.filter(l => !existing.has(normalizeUrl(l.url)));
       const skipped = (valid.length - newOnes.length) + invalidCount;
       await applyImport(
         [...linksState.items, ...newOnes],
