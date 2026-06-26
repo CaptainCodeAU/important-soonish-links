@@ -137,6 +137,7 @@
       <select
         class="select"
         value={settingsState.sortOrder}
+        aria-label={COPY.SETTINGS_SORT}
         onchange={(e) => updateSettings({ sortOrder: (e.target as HTMLSelectElement).value as SortOrder })}
       >
         <option value="recent">Recently added</option>
@@ -158,6 +159,7 @@
           <input
             type="checkbox"
             checked={settingsState.syncEnabled}
+            aria-label={COPY.SETTINGS_SYNC}
             onchange={(e) => updateSettings({ syncEnabled: (e.target as HTMLInputElement).checked })}
           />
           <span class="slider"></span>
@@ -191,6 +193,7 @@
           <input
             type="checkbox"
             checked={settingsState.showBadgeCount}
+            aria-label={COPY.SETTINGS_BADGE}
             onchange={(e) => updateSettings({ showBadgeCount: (e.target as HTMLInputElement).checked })}
           />
           <span class="slider"></span>

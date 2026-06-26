@@ -94,11 +94,12 @@
 {#if showForm}
   <div class="form-overlay">
     <div class="form">
-      <input bind:value={formTitle} placeholder={COPY.ADD_TITLE_PLACEHOLDER} class="form-input" />
+      <input bind:value={formTitle} placeholder={COPY.ADD_TITLE_PLACEHOLDER} aria-label={COPY.ADD_TITLE_PLACEHOLDER} class="form-input" />
       <div class="field">
         <input
           bind:value={formUrl}
           placeholder={COPY.ADD_URL_PLACEHOLDER}
+          aria-label={COPY.ADD_URL_PLACEHOLDER}
           class="form-input"
           class:error={!!urlError}
           onblur={validateForm}
