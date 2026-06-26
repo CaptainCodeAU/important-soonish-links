@@ -80,6 +80,8 @@ export const COPY = {
 
   FOOTER_COUNT:           "{n} links · {m} read",
   FOOTER_COUNT_NONE:      "0 links",
+  RESULT_COUNT:           "{n} results",
+  RESULT_COUNT_ONE:       "1 result",
 } as const;
 
 export { fmt };
