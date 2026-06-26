@@ -38,8 +38,15 @@ describe("Toast", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("renders no action button when no action provided", () => {
+  it("renders only the dismiss button when no action provided", () => {
     render(Toast, { toast: makeToast({ action: undefined }) });
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByText("Undo")).toBeNull();
+    // The dismiss (x) button is always present so every toast is manually closable. C7.
+    expect(screen.getByLabelText("Dismiss")).toBeTruthy();
+  });
+
+  it("always renders a labeled dismiss button (C7)", () => {
+    render(Toast, { toast: makeToast() });
+    expect(screen.getByLabelText("Dismiss")).toBeTruthy();
   });
 });

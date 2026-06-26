@@ -1,5 +1,6 @@
 <script lang="ts">
   import { dismissToast } from "../store/toasts.svelte";
+  import { COPY } from "../lib/copy";
   import type { Toast } from "../store/toasts.svelte";
 
   let { toast }: { toast: Toast } = $props();
@@ -15,6 +16,7 @@
       {toast.action.label}
     </button>
   {/if}
+  <button class="toast-dismiss" onclick={() => dismissToast(toast.id)} aria-label={COPY.DISMISS} title={COPY.DISMISS}>×</button>
 </div>
 
 <style>
@@ -44,4 +46,14 @@
     cursor: pointer;
   }
   .toast-action:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
+  .toast-dismiss {
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1;
+    color: var(--color-text-inverse); opacity: 0.6;
+    background: transparent; border: none; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .toast-dismiss:hover { opacity: 1; }
+  .toast-dismiss:focus-visible { opacity: 1; outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
 </style>

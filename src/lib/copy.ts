@@ -9,6 +9,7 @@ export const COPY = {
   SAVE_INVALID_URL:       "That one's not saveable. Past-you tried.",
   DELETED:                "Link removed.",
   UNDO:                   "Undo",
+  DISMISS:                "Dismiss",
   MARKED_READ:            "Marked as read. Look at you.",
   MARKED_UNREAD:          "Back in the pile.",
   IMPORT_SUCCESS:         "Links imported. Welcome home.",
