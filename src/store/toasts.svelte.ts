@@ -15,16 +15,18 @@ export function pushToast(
   message: string,
   opts?: { action?: { label: string; onClick: () => void }; duration?: number }
 ): void {
-  // Dedupe identical actionless messages (e.g. repeated errors) so they don't pile up.
-  // Toasts WITH an action carry per-item callbacks (e.g. per-link Undo) — never collapse
-  // those or a second rapid delete would lose its undo. D4.
-  if (!opts?.action && toastsState.items.some(t => t.message === message && !t.action)) return;
   const id = String(nextId++);
   const toast: Toast = { id, message, duration: opts?.duration ?? 2500, action: opts?.action };
-  // Cap the stack: keep at most MAX_TOASTS by dropping the oldest. The dropped toast's
-  // pending dismiss timeout is harmless (dismissToast filters by id, already gone).
-  const kept = toastsState.items.slice(-(MAX_TOASTS - 1));
-  toastsState.items = [...kept, toast];
+  // Cap the stack at MAX_TOASTS by dropping the OLDEST *actionless* toasts — never an
+  // action toast (e.g. an 8s Undo), or a delete would become silently unrecoverable. If
+  // only action toasts remain, the stack is allowed to exceed the cap rather than lose an
+  // undo. (No dedupe: it suppressed legit repeat confirmations; the cap alone bounds it.)
+  const next = [...toastsState.items, toast];
+  let overflow = next.length - MAX_TOASTS;
+  toastsState.items = next.filter(t => {
+    if (overflow > 0 && !t.action && t.id !== id) { overflow--; return false; }
+    return true;
+  });
   setTimeout(() => dismissToast(id), toast.duration);
 }
 
