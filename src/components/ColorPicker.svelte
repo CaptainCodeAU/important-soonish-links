@@ -11,11 +11,21 @@
   let swatchesEl: HTMLElement | undefined = $state();
   let swatchStyle = $state("");
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
+  let reopenSuppressed = false;
 
   function handleKeydown(e: KeyboardEvent, color: ColorId, idx: number) {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(color); }
     if (e.key === "ArrowRight") { e.preventDefault(); focusSwatch(idx + 1); }
     if (e.key === "ArrowLeft")  { e.preventDefault(); focusSwatch(idx - 1); }
+    // Escape closes and returns focus to the dot, consistent with the other menus. The
+    // flag stops the dot's onfocus from immediately reopening it. N2.
+    if (e.key === "Escape") {
+      e.preventDefault();
+      open = false;
+      reopenSuppressed = true;
+      dotEl?.focus();
+      reopenSuppressed = false;
+    }
   }
 
   function focusSwatch(idx: number) {
@@ -45,6 +55,9 @@
   }
 
   function openPicker() {
+    // Suppress the re-open that Escape's dotEl.focus() would otherwise trigger — the dot
+    // opens on focus, so returning focus to it after Escape must not reopen the menu. N2.
+    if (reopenSuppressed) return;
     cancelClose();
     if (!dotEl) return;
     reposition();

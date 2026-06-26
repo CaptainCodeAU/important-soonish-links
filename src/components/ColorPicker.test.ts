@@ -57,4 +57,17 @@ describe("ColorPicker", () => {
     );
     expect(checked).toBeTruthy();
   });
+
+  it("closes on Escape from a swatch (N2)", async () => {
+    const onChange = vi.fn();
+    render(ColorPicker, { value: "default", onChange });
+    const dot = screen.getByRole("button", { name: /card color/i });
+    await fireEvent.mouseEnter(dot);
+    await tick();
+    expect(screen.getByRole("radiogroup")).toBeTruthy();
+    const swatches = screen.getAllByRole("radio");
+    await fireEvent.keyDown(swatches[0], { key: "Escape" });
+    await tick();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
 });
