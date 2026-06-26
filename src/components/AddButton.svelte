@@ -25,7 +25,8 @@
     if (!tab?.url) { pushToast(COPY.TAB_QUERY_FAILED); return; }
     if (!validateUrl(tab.url)) { pushToast(COPY.SAVE_INVALID_URL); return; }
 
-    if (linksState.items.some(l => normalizeUrl(l.url) === normalizeUrl(tab.url))) {
+    const url = tab.url; // narrowed const so the closure below keeps it as string
+    if (linksState.items.some(l => normalizeUrl(l.url) === normalizeUrl(url))) {
       pushToast(COPY.ALREADY_SAVED);
       return;
     }
