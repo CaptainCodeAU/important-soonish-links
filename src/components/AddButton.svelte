@@ -42,8 +42,7 @@
       updatedAt: now(),
     };
 
-    await addLink(link);
-    pushToast(COPY.SAVED);
+    if (await addLink(link)) pushToast(COPY.SAVED);
   }
 
   async function openForm() {
@@ -104,8 +103,8 @@
       createdAt: now(),
       updatedAt: now(),
     };
-    await addLink(link);
-    pushToast(COPY.SAVED);
+    const saved = await addLink(link);
+    if (saved) pushToast(COPY.SAVED);
     closeForm();
   }
 </script>

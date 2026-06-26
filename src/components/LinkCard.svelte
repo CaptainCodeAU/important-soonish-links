@@ -15,17 +15,20 @@
     chrome.tabs.create({ url: link.url, active: !bg });
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     const idx = linksState.items.findIndex(l => l.id === link.id);
     const snapshot: SavedLink = { ...link };
-    deleteLink(link.id);
-    pushToast(COPY.DELETED, {
-      duration: 8000,
-      action: {
-        label: COPY.UNDO,
-        onClick: () => restoreLink(snapshot, idx),
-      },
-    });
+    // Only offer Undo if the delete actually persisted; persist() rolls back + toasts
+    // the failure otherwise, so a failed delete won't show a misleading Undo. N1.
+    if (await deleteLink(link.id)) {
+      pushToast(COPY.DELETED, {
+        duration: 8000,
+        action: {
+          label: COPY.UNDO,
+          onClick: () => restoreLink(snapshot, idx),
+        },
+      });
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {

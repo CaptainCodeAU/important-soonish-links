@@ -44,3 +44,30 @@ describe("restoreLink", () => {
     expect(linksState.items[1]).toEqual(link);
   });
 });
+
+describe("write-failure handling (N1)", () => {
+  it("returns true on a successful add", async () => {
+    expect(await addLink(makeLink("1", "https://a.com"))).toBe(true);
+  });
+
+  it("rolls back and returns false when the write fails", async () => {
+    await addLink(makeLink("1", "https://a.com"));
+    const realSet = chrome.storage.local.set;
+    chrome.storage.local.set = () => Promise.reject(new Error("quota"));
+    const ok = await addLink(makeLink("2", "https://b.com"));
+    chrome.storage.local.set = realSet;
+    expect(ok).toBe(false);
+    expect(linksState.items).toHaveLength(1);
+    expect(linksState.items.some(l => l.id === "2")).toBe(false);
+  });
+
+  it("rolls back a failed delete", async () => {
+    await addLink(makeLink("1", "https://a.com"));
+    const realSet = chrome.storage.local.set;
+    chrome.storage.local.set = () => Promise.reject(new Error("quota"));
+    const ok = await deleteLink("1");
+    chrome.storage.local.set = realSet;
+    expect(ok).toBe(false);
+    expect(linksState.items).toHaveLength(1);
+  });
+});
