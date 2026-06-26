@@ -11,6 +11,8 @@
 
   let { onBack }: { onBack: () => void } = $props();
   let showResetDialog = $state(false);
+  let showReplaceDialog = $state(false);
+  let pendingReplace = $state<{ items: SavedLink[]; invalidCount: number } | null>(null);
 
   // ── Export ────────────────────────────────────────────────
   function downloadBlob(content: string, filename: string, mime: string) {
@@ -35,8 +37,22 @@
   }
 
   // ── Import ────────────────────────────────────────────────
+  // Write to storage FIRST, then swap in-memory state, so a failed write can't leave the
+  // UI showing links that were never persisted. Shared by merge + replace. D1/N2.
+  async function applyImport(items: SavedLink[], successToast: string): Promise<void> {
+    try {
+      await writeLinks(items);
+      linksState.items = items;
+      pushToast(successToast);
+    } catch {
+      pushToast(COPY.IMPORT_ERROR);
+    }
+  }
+
   async function handleImport(e: Event, mode: "merge" | "replace") {
-    const file = (e.target as HTMLInputElement).files?.[0];
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ""; // reset so re-picking the same file fires onchange again
     if (!file) return;
     try {
       const text = await file.text();
@@ -48,30 +64,39 @@
       if (valid.length === 0) throw new Error("No valid links");
       const invalidCount = parsed.length - valid.length;
 
-      let items: SavedLink[];
       if (mode === "replace") {
-        items = valid;
-        if (invalidCount > 0) {
-          pushToast(fmt(COPY.IMPORT_PARTIAL, { n: valid.length, m: invalidCount }));
-        } else {
-          pushToast(COPY.IMPORT_REPLACE_SUCCESS);
-        }
-      } else {
-        const existing = new Set(linksState.items.map(l => l.url));
-        const newOnes = valid.filter(l => !existing.has(l.url));
-        items = [...linksState.items, ...newOnes];
-        const skipped = (valid.length - newOnes.length) + invalidCount;
-        if (skipped > 0) {
-          pushToast(fmt(COPY.IMPORT_PARTIAL, { n: newOnes.length, m: skipped }));
-        } else {
-          pushToast(COPY.IMPORT_SUCCESS);
-        }
+        // Destructive — wipes existing links. Confirm before applying. D1.
+        pendingReplace = { items: valid, invalidCount };
+        showReplaceDialog = true;
+        return;
       }
-      linksState.items = items;
-      await writeLinks(items);
+
+      const existing = new Set(linksState.items.map(l => l.url));
+      const newOnes = valid.filter(l => !existing.has(l.url));
+      const skipped = (valid.length - newOnes.length) + invalidCount;
+      await applyImport(
+        [...linksState.items, ...newOnes],
+        skipped > 0 ? fmt(COPY.IMPORT_PARTIAL, { n: newOnes.length, m: skipped }) : COPY.IMPORT_SUCCESS,
+      );
     } catch {
       pushToast(COPY.IMPORT_ERROR);
     }
+  }
+
+  async function confirmReplace(): Promise<void> {
+    if (!pendingReplace) return;
+    const { items, invalidCount } = pendingReplace;
+    showReplaceDialog = false;
+    pendingReplace = null;
+    await applyImport(
+      items,
+      invalidCount > 0 ? fmt(COPY.IMPORT_PARTIAL, { n: items.length, m: invalidCount }) : COPY.IMPORT_REPLACE_SUCCESS,
+    );
+  }
+
+  function cancelReplace(): void {
+    showReplaceDialog = false;
+    pendingReplace = null;
   }
 
   // ── Reset ─────────────────────────────────────────────────
@@ -223,6 +248,17 @@
     confirmLabel={COPY.RESET_ACTION}
     onCancel={() => (showResetDialog = false)}
     onConfirm={doReset}
+  />
+{/if}
+
+{#if showReplaceDialog && pendingReplace}
+  <ConfirmDialog
+    title={COPY.IMPORT_REPLACE_CONFIRM_TITLE}
+    body={fmt(COPY.IMPORT_REPLACE_CONFIRM_BODY, { n: pendingReplace.items.length, m: linksState.items.length })}
+    cancelLabel={COPY.RESET_CANCEL}
+    confirmLabel={COPY.IMPORT_REPLACE}
+    onCancel={cancelReplace}
+    onConfirm={confirmReplace}
   />
 {/if}
 

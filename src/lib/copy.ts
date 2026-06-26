@@ -15,6 +15,8 @@ export const COPY = {
   IMPORT_SUCCESS:         "Links imported. Welcome home.",
   IMPORT_REPLACE_SUCCESS: "Fresh start. They're all here.",
   IMPORT_PARTIAL:         "Imported {n} links. Skipped {m} that looked off.",
+  IMPORT_REPLACE_CONFIRM_TITLE: "Replace all links?",
+  IMPORT_REPLACE_CONFIRM_BODY:  "This swaps your {m} saved links for {n} from the file. Can't be undone.",
   IMPORT_ERROR:           "That file doesn't look right. No changes made.",
   EXPORT_DONE:            "Your links are backed up.",
   SYNC_QUOTA_EXCEEDED:    "Sync hit its limit. Links saved locally — no data lost.",
