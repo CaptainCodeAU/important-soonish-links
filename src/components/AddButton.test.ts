@@ -21,4 +21,24 @@ describe("AddButton accessibility", () => {
     await tick();
     expect(document.activeElement).toBe(screen.getByLabelText(COPY.ADD_TITLE_PLACEHOLDER));
   });
+
+  it("toggles the form closed on a second caret click (review fix)", async () => {
+    render(AddButton);
+    const caret = screen.getByLabelText("Manual entry");
+    await fireEvent.click(caret);
+    await tick();
+    expect(screen.getByLabelText(COPY.ADD_TITLE_PLACEHOLDER)).toBeTruthy();
+    await fireEvent.click(caret);
+    await tick();
+    expect(screen.queryByLabelText(COPY.ADD_TITLE_PLACEHOLDER)).toBeNull();
+  });
+
+  it("closes the form on Escape (review fix)", async () => {
+    render(AddButton);
+    await fireEvent.click(screen.getByLabelText("Manual entry"));
+    await tick();
+    await fireEvent.keyDown(window, { key: "Escape" });
+    await tick();
+    expect(screen.queryByLabelText(COPY.ADD_TITLE_PLACEHOLDER)).toBeNull();
+  });
 });

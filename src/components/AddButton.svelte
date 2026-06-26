@@ -55,8 +55,10 @@
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
-      formTitle = tab?.title ?? "";
-      formUrl = tab?.url ?? "";
+      // Only prefill fields the user hasn't already typed into — focus is moved in
+      // above, so they may start typing before this async query resolves.
+      if (!formTitle) formTitle = tab?.title ?? "";
+      if (!formUrl) formUrl = tab?.url ?? "";
     } catch {
       /* leave blank */
     }
@@ -66,6 +68,17 @@
     showForm = false;
     formTitle = ""; formUrl = ""; urlError = "";
     caretBtn?.focus();
+  }
+
+  // The caret toggles the form; re-opening would otherwise clobber the user's edits
+  // with the current tab's values.
+  function toggleForm() {
+    if (showForm) { closeForm(); return; }
+    openForm();
+  }
+
+  function handleFormKeydown(e: KeyboardEvent) {
+    if (showForm && e.key === "Escape") { e.preventDefault(); closeForm(); }
   }
 
   function validateForm(): boolean {
@@ -97,9 +110,11 @@
   }
 </script>
 
+<svelte:window on:keydown={handleFormKeydown} />
+
 <div class="add-wrap">
   <button class="add-btn" onclick={saveCurrentTab} aria-label="Save current tab">+</button>
-  <button class="caret-btn" bind:this={caretBtn} onclick={openForm} aria-label="Manual entry" aria-expanded={showForm}>▾</button>
+  <button class="caret-btn" bind:this={caretBtn} onclick={toggleForm} aria-label="Manual entry" aria-expanded={showForm}>▾</button>
 </div>
 
 {#if showForm}

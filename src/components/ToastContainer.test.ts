@@ -25,14 +25,12 @@ describe("ToastContainer dismissal (C7)", () => {
     expect(toastsState.items.length).toBe(0);
   });
 
-  it("Escape dismisses the newest toast", async () => {
-    pushToast("First", { duration: 999999 });
-    pushToast("Second", { duration: 999999 });
+  it("does not dismiss toasts on Escape, so Undo survives (review fix)", async () => {
+    pushToast("Link removed", { duration: 999999, action: { label: "Undo", onClick: () => {} } });
     render(ToastContainer);
     await tick();
     await fireEvent.keyDown(window, { key: "Escape" });
     await tick();
     expect(toastsState.items.length).toBe(1);
-    expect(toastsState.items[0].message).toBe("First");
   });
 });

@@ -36,11 +36,11 @@
     focusFirstOption(menuEl);
   }
 
-  // Keep the menu pinned to its trigger while the list scrolls or the window
-  // resizes; the disposer detaches on close/unmount. C2.
+  // Close the menu on scroll/resize so it never floats detached from its trigger;
+  // the disposer releases the listeners. C2.
   $effect(() => {
     if (!open) return;
-    return trackViewport(reposition);
+    return trackViewport(() => { open = false; });
   });
 
   function close(returnFocus = true) {

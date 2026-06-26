@@ -27,10 +27,10 @@
     focusFirstOption(menuEl);
   }
 
-  // Keep the menu pinned to its trigger while scrolling/resizing. C2.
+  // Close the menu on scroll/resize so it never floats detached from its trigger. C2.
   $effect(() => {
     if (!open) return;
-    return trackViewport(reposition);
+    return trackViewport(() => { open = false; });
   });
 
   function close(returnFocus = true) {

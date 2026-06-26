@@ -51,21 +51,28 @@
     open = true;
   }
 
-  // Keep the swatches pinned to the dot while the list scrolls or the window
-  // resizes; the disposer detaches on close/unmount. C2.
-  $effect(() => {
-    if (!open) return;
-    return trackViewport(reposition);
-  });
 
   function handleWindowClick(e: MouseEvent) {
     if (open && clickedOutside(e, [pickerEl, swatchesEl])) open = false;
   }
+
+  function handleFocusOut(e: FocusEvent) {
+    // Tab away from the whole picker closes it (and releases the scroll listener
+    // below, which opens on dot focus but has no blur-close otherwise). C2 review.
+    if (!pickerEl?.contains(e.relatedTarget as Node)) open = false;
+  }
+
+  // Close the picker on scroll/resize so it never floats detached from its dot;
+  // the disposer releases the listeners. C2.
+  $effect(() => {
+    if (!open) return;
+    return trackViewport(() => { open = false; });
+  });
 </script>
 
 <svelte:window on:click={handleWindowClick} />
 
-<div class="color-wrap" bind:this={pickerEl}>
+<div class="color-wrap" bind:this={pickerEl} onfocusout={handleFocusOut}>
   <button
     class="dot"
     bind:this={dotEl}
