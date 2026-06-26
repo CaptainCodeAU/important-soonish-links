@@ -36,7 +36,10 @@
     -webkit-appearance: none;
     appearance: none;
   }
+  /* Plain :focus stays clean for mouse users; keyboard focus gets a visible ring
+     (matches the codebase's focus-visible convention). C11 / WCAG 2.4.7. */
   .search-input:focus { outline: none; }
+  .search-input:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
   .search-input::placeholder { color: var(--color-text-muted); }
   .clear-btn {
     font-size: 16px; color: var(--color-text-muted);
