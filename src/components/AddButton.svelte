@@ -3,7 +3,7 @@
   import { addLink, linksState } from "../store/links.svelte";
   import { pushToast } from "../store/toasts.svelte";
   import { COPY } from "../lib/copy";
-  import { generateId, validateUrl, hostnameFromUrl, now, normalizeUrl } from "../lib/utils";
+  import { generateId, validateUrl, hostnameFromUrl, now, containsUrl } from "../lib/utils";
   import type { SavedLink } from "../types";
 
   let showForm = $state(false);
@@ -25,8 +25,7 @@
     if (!tab?.url) { pushToast(COPY.TAB_QUERY_FAILED); return; }
     if (!validateUrl(tab.url)) { pushToast(COPY.SAVE_INVALID_URL); return; }
 
-    const url = tab.url; // narrowed const so the closure below keeps it as string
-    if (linksState.items.some(l => normalizeUrl(l.url) === normalizeUrl(url))) {
+    if (containsUrl(linksState.items, tab.url)) {
       pushToast(COPY.ALREADY_SAVED);
       return;
     }
@@ -82,8 +81,11 @@
   }
 
   // Enter in either field submits — scoped to the inputs (not the window handler). D2.
+  // Ignore Enter that's committing an IME composition, and OS key-repeat. #8/#10
   function onFieldKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") { e.preventDefault(); submitForm(); }
+    if (e.key !== "Enter" || e.isComposing || e.keyCode === 229 || e.repeat) return;
+    e.preventDefault();
+    submitForm();
   }
 
   function validateForm(): boolean {
@@ -94,7 +96,7 @@
 
   async function submitForm() {
     if (!validateForm()) return;
-    if (linksState.items.some(l => normalizeUrl(l.url) === normalizeUrl(formUrl))) {
+    if (containsUrl(linksState.items, formUrl)) {
       pushToast(COPY.ALREADY_SAVED);
       closeForm();
       return;
@@ -110,8 +112,9 @@
       updatedAt: now(),
     };
     const saved = await addLink(link);
-    if (saved) pushToast(COPY.SAVED);
-    closeForm();
+    // Keep the form open with the typed text on failure so the user can retry; persist()
+    // already surfaced the error. #3
+    if (saved) { pushToast(COPY.SAVED); closeForm(); }
   }
 </script>
 
