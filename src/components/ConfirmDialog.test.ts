@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
+import { tick } from "svelte";
 import ConfirmDialog from "./ConfirmDialog.svelte";
 
 const defaultProps = {
@@ -48,5 +49,17 @@ describe("ConfirmDialog", () => {
   it("has role=alertdialog", () => {
     render(ConfirmDialog, { ...defaultProps });
     expect(screen.getByRole("alertdialog")).toBeTruthy();
+  });
+
+  it("restores focus to the previously focused element on close (C4)", async () => {
+    const trigger = document.createElement("button");
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const { unmount } = render(ConfirmDialog, { ...defaultProps });
+    expect(document.activeElement).not.toBe(trigger);
+    unmount();
+    await tick();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
   });
 });

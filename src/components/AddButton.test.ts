@@ -13,4 +13,12 @@ describe("AddButton accessibility", () => {
     expect(screen.getByLabelText(COPY.ADD_TITLE_PLACEHOLDER)).toBeTruthy();
     expect(screen.getByLabelText(COPY.ADD_URL_PLACEHOLDER)).toBeTruthy();
   });
+
+  it("autofocuses the title field when the form opens (C4)", async () => {
+    render(AddButton);
+    await fireEvent.click(screen.getByLabelText("Manual entry"));
+    await tick();
+    await tick();
+    expect(document.activeElement).toBe(screen.getByLabelText(COPY.ADD_TITLE_PLACEHOLDER));
+  });
 });

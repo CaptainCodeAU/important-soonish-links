@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { addLink, linksState } from "../store/links.svelte";
   import { pushToast } from "../store/toasts.svelte";
   import { COPY } from "../lib/copy";
@@ -9,6 +10,8 @@
   let formTitle = $state("");
   let formUrl = $state("");
   let urlError = $state("");
+  let titleInput: HTMLInputElement | undefined = $state();
+  let caretBtn: HTMLButtonElement | undefined = $state();
 
   async function saveCurrentTab() {
     let tabs: chrome.tabs.Tab[];
@@ -45,6 +48,10 @@
 
   async function openForm() {
     showForm = true;
+    // Move focus into the form immediately, before the async tab fetch, so keyboard
+    // users land on the title field right away. C4 / WCAG 2.4.3.
+    await tick();
+    titleInput?.focus();
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
@@ -53,6 +60,12 @@
     } catch {
       /* leave blank */
     }
+  }
+
+  function closeForm() {
+    showForm = false;
+    formTitle = ""; formUrl = ""; urlError = "";
+    caretBtn?.focus();
   }
 
   function validateForm(): boolean {
@@ -65,8 +78,7 @@
     if (!validateForm()) return;
     if (linksState.items.some(l => l.url === formUrl)) {
       pushToast(COPY.ALREADY_SAVED);
-      showForm = false;
-      formTitle = ""; formUrl = ""; urlError = "";
+      closeForm();
       return;
     }
     const link: SavedLink = {
@@ -81,20 +93,19 @@
     };
     await addLink(link);
     pushToast(COPY.SAVED);
-    showForm = false;
-    formTitle = ""; formUrl = ""; urlError = "";
+    closeForm();
   }
 </script>
 
 <div class="add-wrap">
   <button class="add-btn" onclick={saveCurrentTab} aria-label="Save current tab">+</button>
-  <button class="caret-btn" onclick={openForm} aria-label="Manual entry" aria-expanded={showForm}>▾</button>
+  <button class="caret-btn" bind:this={caretBtn} onclick={openForm} aria-label="Manual entry" aria-expanded={showForm}>▾</button>
 </div>
 
 {#if showForm}
   <div class="form-overlay">
     <div class="form">
-      <input bind:value={formTitle} placeholder={COPY.ADD_TITLE_PLACEHOLDER} aria-label={COPY.ADD_TITLE_PLACEHOLDER} class="form-input" />
+      <input bind:this={titleInput} bind:value={formTitle} placeholder={COPY.ADD_TITLE_PLACEHOLDER} aria-label={COPY.ADD_TITLE_PLACEHOLDER} class="form-input" />
       <div class="field">
         <input
           bind:value={formUrl}
@@ -107,7 +118,7 @@
         {#if urlError}<span class="field-error">{urlError}</span>{/if}
       </div>
       <div class="form-actions">
-        <button class="btn-secondary" onclick={() => (showForm = false)}>{COPY.ADD_CANCEL}</button>
+        <button class="btn-secondary" onclick={closeForm}>{COPY.ADD_CANCEL}</button>
         <button class="btn-primary" onclick={submitForm}>{COPY.ADD_SAVE}</button>
       </div>
     </div>

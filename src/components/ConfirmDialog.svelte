@@ -12,7 +12,12 @@
   let dialogEl: HTMLElement | undefined = $state();
   let cancelBtn: HTMLButtonElement | undefined = $state();
 
-  onMount(() => { cancelBtn?.focus(); });
+  onMount(() => {
+    // Remember what was focused, focus into the dialog, and restore on close. C4 / 2.4.3.
+    const prev = document.activeElement as HTMLElement | null;
+    cancelBtn?.focus();
+    return () => prev?.focus();
+  });
 
   function trapFocus(e: KeyboardEvent) {
     if (e.key !== "Tab" || !dialogEl) return;

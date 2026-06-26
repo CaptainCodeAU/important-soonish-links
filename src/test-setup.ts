@@ -54,7 +54,7 @@ const local = makeStorageArea();
 const sync = Object.assign(makeStorageArea(), { QUOTA_BYTES: 102400 });
 
 (globalThis as Record<string, unknown>).chrome = {
-  storage: { local, sync },
+  storage: { local, sync, onChanged: { addListener: () => {}, removeListener: () => {} } },
   runtime: {
     onInstalled: { addListener: () => {} },
     onMessage: { addListener: () => {} },

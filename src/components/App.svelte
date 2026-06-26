@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { fly } from "svelte/transition";
   import { loadLinks } from "../store/links.svelte";
   import { loadSettings } from "../store/settings.svelte";
@@ -15,6 +15,15 @@
   // Slide distance for the view transition; must match --popup-width (tokens.css)
   // so a view fully clears the popup on slide-out.
   const POPUP_WIDTH = 760;
+
+  let gearEl = $state<HTMLButtonElement>();
+
+  // Returning from settings, restore focus to the gear that opened it. C4 / 2.4.3.
+  async function handleBack() {
+    view = "list";
+    await tick();
+    gearEl?.focus();
+  }
 
   onMount(async () => {
     await Promise.all([loadLinks(), loadSettings()]);
@@ -36,14 +45,14 @@
   <div class="views">
     {#if view === "list"}
       <div class="view" transition:fly={{ x: -POPUP_WIDTH, duration: 200 }}>
-        <Header onSettings={() => (view = "settings")} />
+        <Header onSettings={() => (view = "settings")} bind:gearEl />
         <SearchBar />
         <FilterBar />
         <LinkList />
       </div>
     {:else}
       <div class="view" transition:fly={{ x: POPUP_WIDTH, duration: 200 }}>
-        <SettingsView onBack={() => (view = "list")} />
+        <SettingsView onBack={handleBack} />
       </div>
     {/if}
   </div>
