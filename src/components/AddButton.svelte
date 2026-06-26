@@ -80,6 +80,11 @@
     if (showForm && e.key === "Escape") { e.preventDefault(); closeForm(); }
   }
 
+  // Enter in either field submits — scoped to the inputs (not the window handler). D2.
+  function onFieldKeydown(e: KeyboardEvent) {
+    if (e.key === "Enter") { e.preventDefault(); submitForm(); }
+  }
+
   function validateForm(): boolean {
     if (!validateUrl(formUrl)) { urlError = COPY.ADD_URL_ERROR; return false; }
     urlError = "";
@@ -119,7 +124,7 @@
 {#if showForm}
   <div class="form-overlay">
     <div class="form">
-      <input bind:this={titleInput} bind:value={formTitle} placeholder={COPY.ADD_TITLE_PLACEHOLDER} aria-label={COPY.ADD_TITLE_PLACEHOLDER} class="form-input" />
+      <input bind:this={titleInput} bind:value={formTitle} placeholder={COPY.ADD_TITLE_PLACEHOLDER} aria-label={COPY.ADD_TITLE_PLACEHOLDER} class="form-input" onkeydown={onFieldKeydown} />
       <div class="field">
         <input
           bind:value={formUrl}
@@ -128,6 +133,7 @@
           class="form-input"
           class:error={!!urlError}
           onblur={validateForm}
+          onkeydown={onFieldKeydown}
         />
         {#if urlError}<span class="field-error">{urlError}</span>{/if}
       </div>

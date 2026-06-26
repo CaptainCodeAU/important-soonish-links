@@ -1,8 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import { tick } from "svelte";
 import AddButton from "./AddButton.svelte";
 import { COPY } from "../lib/copy";
+import { linksState } from "../store/links.svelte";
+
+beforeEach(() => { linksState.items = []; });
 
 describe("AddButton accessibility", () => {
   it("manual-entry form inputs expose accessible names (C8)", async () => {
@@ -40,5 +43,18 @@ describe("AddButton accessibility", () => {
     await fireEvent.keyDown(window, { key: "Escape" });
     await tick();
     expect(screen.queryByLabelText(COPY.ADD_TITLE_PLACEHOLDER)).toBeNull();
+  });
+
+  it("submits the add form on Enter (D2)", async () => {
+    render(AddButton);
+    await fireEvent.click(screen.getByLabelText("Manual entry"));
+    await tick();
+    const urlInput = screen.getByLabelText(COPY.ADD_URL_PLACEHOLDER);
+    await fireEvent.input(urlInput, { target: { value: "https://enter-test.com" } });
+    await fireEvent.keyDown(urlInput, { key: "Enter" });
+    await new Promise(r => setTimeout(r));
+    await tick();
+    expect(linksState.items.some(l => l.url === "https://enter-test.com")).toBe(true);
+    expect(screen.queryByLabelText(COPY.ADD_URL_PLACEHOLDER)).toBeNull();
   });
 });
