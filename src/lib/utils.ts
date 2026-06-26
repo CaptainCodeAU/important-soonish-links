@@ -12,8 +12,23 @@ export function validateUrl(url: string): boolean {
   }
 }
 
+/**
+ * Canonical form of a URL for **duplicate comparison only** (never stored — links keep
+ * their original url for display/open). Lowercases the host, drops a leading `www.`, a
+ * single trailing slash, and the hash; preserves the query string. Deliberately does NOT
+ * unify http/https — treating those as the same page is surprising, so they stay distinct.
+ * Falls back to a trimmed string for non-URL input. D6.
+ */
 export function normalizeUrl(url: string): string {
-  return url.trim();
+  try {
+    const u = new URL(url.trim());
+    const host = u.hostname.replace(/^www\./i, "");
+    let path = u.pathname;
+    if (path.endsWith("/")) path = path.slice(0, -1); // "/a/" -> "/a", "/" -> ""
+    return `${u.protocol}//${host}${u.port ? ":" + u.port : ""}${path}${u.search}`;
+  } catch {
+    return url.trim();
+  }
 }
 
 /**

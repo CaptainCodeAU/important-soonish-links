@@ -3,7 +3,7 @@
   import { addLink, linksState } from "../store/links.svelte";
   import { pushToast } from "../store/toasts.svelte";
   import { COPY } from "../lib/copy";
-  import { generateId, validateUrl, hostnameFromUrl, now } from "../lib/utils";
+  import { generateId, validateUrl, hostnameFromUrl, now, normalizeUrl } from "../lib/utils";
   import type { SavedLink } from "../types";
 
   let showForm = $state(false);
@@ -25,7 +25,7 @@
     if (!tab?.url) { pushToast(COPY.TAB_QUERY_FAILED); return; }
     if (!validateUrl(tab.url)) { pushToast(COPY.SAVE_INVALID_URL); return; }
 
-    if (linksState.items.some(l => l.url === tab.url)) {
+    if (linksState.items.some(l => normalizeUrl(l.url) === normalizeUrl(tab.url))) {
       pushToast(COPY.ALREADY_SAVED);
       return;
     }
@@ -88,7 +88,7 @@
 
   async function submitForm() {
     if (!validateForm()) return;
-    if (linksState.items.some(l => l.url === formUrl)) {
+    if (linksState.items.some(l => normalizeUrl(l.url) === normalizeUrl(formUrl))) {
       pushToast(COPY.ALREADY_SAVED);
       closeForm();
       return;

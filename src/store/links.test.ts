@@ -24,6 +24,13 @@ describe("addLink", () => {
     await addLink(makeLink("2", "https://example.com"));
     expect(linksState.items).toHaveLength(1);
   });
+
+  it("treats trailing-slash / www / case variants as duplicates (D6)", async () => {
+    await addLink(makeLink("1", "https://example.com/"));
+    await addLink(makeLink("2", "https://www.example.com"));
+    await addLink(makeLink("3", "https://EXAMPLE.com"));
+    expect(linksState.items).toHaveLength(1);
+  });
 });
 
 describe("deleteLink", () => {

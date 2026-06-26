@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateUrl, generateId, hostnameFromUrl, isSafeFaviconUrl } from "./utils";
+import { validateUrl, generateId, hostnameFromUrl, isSafeFaviconUrl, normalizeUrl } from "./utils";
 
 describe("validateUrl", () => {
   it("accepts http URL", () => expect(validateUrl("http://example.com")).toBe(true));
@@ -28,4 +28,18 @@ describe("isSafeFaviconUrl (B4)", () => {
   it("rejects javascript:", () => expect(isSafeFaviconUrl("javascript:alert(1)")).toBe(false));
   it("rejects data:text/html", () => expect(isSafeFaviconUrl("data:text/html,<x>")).toBe(false));
   it("rejects empty string", () => expect(isSafeFaviconUrl("")).toBe(false));
+});
+
+describe("normalizeUrl (D6)", () => {
+  it("treats a trailing slash as equal", () =>
+    expect(normalizeUrl("https://a.com/")).toBe(normalizeUrl("https://a.com")));
+  it("lowercases the host", () => expect(normalizeUrl("https://A.COM/x")).toBe("https://a.com/x"));
+  it("drops a leading www.", () => expect(normalizeUrl("https://www.a.com")).toBe("https://a.com"));
+  it("strips the hash", () => expect(normalizeUrl("https://a.com/p#frag")).toBe("https://a.com/p"));
+  it("preserves the query string", () =>
+    expect(normalizeUrl("https://a.com/s?q=1")).toBe("https://a.com/s?q=1"));
+  it("does NOT unify http and https", () =>
+    expect(normalizeUrl("http://a.com")).not.toBe(normalizeUrl("https://a.com")));
+  it("falls back to a trimmed string for non-URLs", () =>
+    expect(normalizeUrl("  not a url  ")).toBe("not a url"));
 });

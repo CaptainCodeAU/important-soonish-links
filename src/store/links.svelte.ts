@@ -3,6 +3,7 @@ import { readLinks, writeLinks } from "../storage";
 import { settingsState } from "./settings.svelte";
 import { pushToast } from "./toasts.svelte";
 import { COPY } from "../lib/copy";
+import { normalizeUrl } from "../lib/utils";
 
 export const linksState = $state({
   items: [] as SavedLink[],
@@ -34,7 +35,7 @@ export async function loadLinks(): Promise<void> {
 // fails (no chrome.storage.onChanged fires on failure, so this is the only corrector).
 // They return whether the write succeeded so callers only show success feedback then. N1.
 export async function addLink(link: SavedLink): Promise<boolean> {
-  if (linksState.items.some(l => l.url === link.url)) return false;
+  if (linksState.items.some(l => normalizeUrl(l.url) === normalizeUrl(link.url))) return false;
   const prev = linksState.items;
   const next = [link, ...prev];
   linksState.items = next;

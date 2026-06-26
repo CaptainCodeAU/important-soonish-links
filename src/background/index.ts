@@ -1,5 +1,5 @@
 import { readSettings, readLinks, writeLinks } from "../storage";
-import { validateUrl, generateId, hostnameFromUrl, now } from "../lib/utils";
+import { validateUrl, generateId, hostnameFromUrl, now, normalizeUrl } from "../lib/utils";
 import type { SavedLink } from "../types";
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -16,7 +16,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   const title = info.selectionText?.trim() || tab?.title || hostnameFromUrl(url);
   const links = await readLinks();
-  if (links.some(l => l.url === url)) return;
+  if (links.some(l => normalizeUrl(l.url) === normalizeUrl(url))) return;
 
   const newLink: SavedLink = {
     id: generateId(),

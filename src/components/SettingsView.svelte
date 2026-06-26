@@ -5,6 +5,7 @@
   import { COPY, fmt } from "../lib/copy";
   import { clearAll, writeLinks } from "../storage";
   import { sanitizeLinks } from "../lib/sanitize";
+  import { normalizeUrl } from "../lib/utils";
   import { serializeJson, serializeMarkdown, serializeHtml } from "../lib/export";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import type { SavedLink, SortOrder } from "../types";
@@ -71,8 +72,8 @@
         return;
       }
 
-      const existing = new Set(linksState.items.map(l => l.url));
-      const newOnes = valid.filter(l => !existing.has(l.url));
+      const existing = new Set(linksState.items.map(l => normalizeUrl(l.url)));
+      const newOnes = valid.filter(l => !existing.has(normalizeUrl(l.url)));
       const skipped = (valid.length - newOnes.length) + invalidCount;
       await applyImport(
         [...linksState.items, ...newOnes],
