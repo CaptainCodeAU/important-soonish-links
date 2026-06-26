@@ -40,9 +40,15 @@
   <div class="visually-hidden" role="status" aria-live="polite">{statusMsg}</div>
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div class="links" role="list" aria-label="Saved links" bind:this={listEl} onkeydown={handleListKeydown}>
-    {#if links.length === 0}
+    {#if !linksState.loaded}
+      <!-- Skeleton until the first load resolves, so the popup doesn't flash the
+           "Nothing matches" empty message before any links exist. D3. -->
+      {#each [0, 1, 2] as i (i)}
+        <div class="skeleton-card" aria-hidden="true"></div>
+      {/each}
+    {:else if links.length === 0}
       <EmptyState
-        type={!isFiltering && linksState.loaded && linksState.items.length === 0 ? "empty" : "no-results"}
+        type={!isFiltering && linksState.items.length === 0 ? "empty" : "no-results"}
         onClearFilters={hasFilterChips ? clearFilters : undefined}
       />
     {:else}
@@ -53,10 +59,12 @@
   </div>
 </div>
 <footer class="footer">
-  {#if linksState.items.length === 0}
-    <span>{COPY.FOOTER_COUNT_NONE}</span>
-  {:else}
-    <span>{linksState.items.length} links · {readCount} read</span>
+  {#if linksState.loaded}
+    {#if linksState.items.length === 0}
+      <span>{COPY.FOOTER_COUNT_NONE}</span>
+    {:else}
+      <span>{linksState.items.length} links · {readCount} read</span>
+    {/if}
   {/if}
 </footer>
 
@@ -71,6 +79,19 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+  /* Load placeholder. The pulse is disabled under prefers-reduced-motion by the global
+     rule in tokens.css. D3. */
+  .skeleton-card {
+    height: 60px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    animation: skeleton-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
   }
   .footer {
     border-top: 1px solid var(--color-border);
