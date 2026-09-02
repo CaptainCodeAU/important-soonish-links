@@ -7,7 +7,7 @@
 // click for the rest) -- only the mechanics below are common.
 
 import { tick } from "svelte";
-import { placePopover, clickedOutside, rovingKeydown, focusFirstOption, trackViewport } from "./popover";
+import { placePopover, clickedOutside, rovingKeydown, trackViewport } from "./popover";
 import type { PlaceOptions, RovingOptions } from "./popover";
 
 export interface PopoverOptions {
@@ -79,13 +79,20 @@ export function createPopover(opts: PopoverOptions): PopoverController {
   }
 
   async function openMenu() {
+    // Idempotent: ColorPicker's dot fires both mouseenter and focus on a single click,
+    // calling this twice for one gesture. Without this guard each call would re-run
+    // reposition() (a forced synchronous layout read) and the tick+focus dance below.
+    if (open) return;
     if (!opts.anchor()) return;
     reposition();
     open = true;
     // Let the panel actually mount before touching it -- reading opts.panel() here
     // synchronously would still return the pre-open value, which is the bug above.
+    // Focuses directly rather than through focusFirstOption(), which does its own
+    // await tick() -- redundant with the one just above, doubling the wait before
+    // keyboard focus lands on every open of every menu.
     await tick();
-    void focusFirstOption(opts.panel(), opts.focusOnOpen ?? opts.roving?.selector);
+    opts.panel()?.querySelector<HTMLElement>(opts.focusOnOpen ?? opts.roving?.selector ?? "[role=option]")?.focus();
   }
 
   function toggle() {
