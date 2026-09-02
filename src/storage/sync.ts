@@ -118,9 +118,16 @@ export async function writeSyncLinks(links: SavedLink[]): Promise<void> {
   // there is no local copy to fall back to. Any old chunk beyond the new payload is blanked in
   // the SAME set() — an empty chunk concatenates to nothing, so a reader in the window
   // reassembles exactly the new list instead of an over-long chunk run.
+  //
+  // Blanking (not a prior remove()) also covers legacy plain keys left over from an old
+  // sync format: a separate remove() before this set() would open the same torn-down-popup
+  // window this fix exists to close, just for legacy keys instead of gz chunks. Blanking
+  // them in this same call keeps every legacy key redundant with the new payload from the
+  // instant this call lands, so it can safely be dropped below without ever having existed
+  // as dead weight against the 100 KB cap.
   const existing = Object.keys(await chrome.storage.sync.get(null)).filter(isLinkKey);
   for (const k of existing) {
-    if (k.startsWith(GZ_CHUNK) && !(k in toSet)) toSet[k] = "";
+    if (!(k in toSet)) toSet[k] = "";
   }
   await chrome.storage.sync.set(toSet);
 

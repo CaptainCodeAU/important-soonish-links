@@ -197,6 +197,24 @@ describe("writeSyncLinks never empties the cloud (#4 — no data loss)", () => {
     expect(await readPersistedLinks(all)).toEqual([link("1")]);
   });
 
+  it("keeps a legacy-format cloud copy readable when the new write is rejected (#4 follow-up)", async () => {
+    // A device still carrying the pre-gzip plain format, upgrading for the first time.
+    // Legacy keys must be blanked in the SAME set() as the new payload, not removed first —
+    // otherwise a rejected/interrupted set() below leaves the cloud with neither format.
+    await chrome.storage.sync.set({ isl_links: [link("legacy")] });
+    const origSet = chrome.storage.sync.set;
+    (chrome.storage.sync as unknown as { set: unknown }).set = () =>
+      Promise.reject(new Error("QUOTA_BYTES quota exceeded"));
+    try {
+      await expect(writeSyncLinks([link("2")])).rejects.toThrow();
+    } finally {
+      (chrome.storage.sync as unknown as { set: typeof origSet }).set = origSet;
+    }
+    const all = await chrome.storage.sync.get(null);
+    expect(all["isl_links"]).toEqual([link("legacy")]);
+    expect(await readPersistedLinks(all)).toEqual([link("legacy")]);
+  });
+
   it("a shrinking write is readable at every point in between", async () => {
     // Seed a fake multi-chunk old payload directly (500 tiny links compress to a single
     // chunk, which wouldn't exercise the blank-before-remove path). Content doesn't need to
