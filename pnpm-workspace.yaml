@@ -6,3 +6,9 @@ overrides:
   # @testing-library/svelte-core@1.1.2 ships a legacy `export let` scaffold that
   # fails under this project's global runes mode. 1.0.0 is runes-compatible.
   "@testing-library/svelte-core": 1.0.0
+  # Dev-tooling-only supply-chain advisories (transitive via vite/jsdom -- never
+  # shipped in the built extension). Pinned to the minimum patched release within
+  # the already-locked major.minor line, not the latest major, to stay low-risk.
+  undici: ^7.29.0    # cache/CRLF/desync advisories fixed <7.29.0 (via jsdom)
+  nanoid: ^3.3.18     # indefinite-loop advisories fixed <3.3.18 (via vite's postcss)
+  postcss: ^8.5.23    # sourceMappingURL path-traversal advisories fixed <=8.5.22 (via vite)
