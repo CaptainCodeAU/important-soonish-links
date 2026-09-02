@@ -3,8 +3,8 @@
   import { addLink, linksState } from "../store/links.svelte";
   import { pushToast } from "../store/toasts.svelte";
   import { COPY } from "../lib/copy";
-  import { generateId, validateUrl, hostnameFromUrl, now, containsUrl } from "../lib/utils";
-  import type { SavedLink } from "../types";
+  import { validateUrl, containsUrl } from "../lib/utils";
+  import { createLink } from "../lib/link";
 
   let showForm = $state(false);
   let formTitle = $state("");
@@ -30,17 +30,7 @@
       return;
     }
 
-    const link: SavedLink = {
-      id: generateId(),
-      title: tab.title ?? hostnameFromUrl(tab.url),
-      url: tab.url,
-      favicon: tab.favIconUrl,
-      color: "default",
-      tags: [],
-      order: 0,
-      createdAt: now(),
-      updatedAt: now(),
-    };
+    const link = createLink({ url: tab.url, title: tab.title, favicon: tab.favIconUrl });
 
     if (await addLink(link)) pushToast(COPY.SAVED);
   }
@@ -101,16 +91,7 @@
       closeForm();
       return;
     }
-    const link: SavedLink = {
-      id: generateId(),
-      title: formTitle || hostnameFromUrl(formUrl),
-      url: formUrl,
-      color: "default",
-      tags: [],
-      order: 0,
-      createdAt: now(),
-      updatedAt: now(),
-    };
+    const link = createLink({ url: formUrl, title: formTitle });
     const saved = await addLink(link);
     // Keep the form open with the typed text on failure so the user can retry; persist()
     // already surfaced the error. #3

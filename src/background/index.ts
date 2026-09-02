@@ -1,5 +1,6 @@
 import { readSettings, readLinks, writeLinks } from "../storage";
-import { validateUrl, generateId, hostnameFromUrl, now, containsUrl } from "../lib/utils";
+import { validateUrl, containsUrl } from "../lib/utils";
+import { createLink } from "../lib/link";
 import type { SavedLink } from "../types";
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -14,20 +15,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const url = info.linkUrl ?? info.pageUrl ?? tab?.url;
   if (!url || !validateUrl(url)) return;
 
-  const title = info.selectionText?.trim() || tab?.title || hostnameFromUrl(url);
+  // createLink falls back to the hostname itself when title is falsy, so this only
+  // needs the two levels genuinely specific to a context-menu save.
+  const title = info.selectionText?.trim() || tab?.title;
   const links = await readLinks();
   if (containsUrl(links, url)) return;
 
-  const newLink: SavedLink = {
-    id: generateId(),
-    title,
-    url,
-    color: "default",
-    tags: [],
-    order: links.length,
-    createdAt: now(),
-    updatedAt: now(),
-  };
+  const newLink = createLink({ url, title });
 
   const next = [newLink, ...links];
   await writeLinks(next);
