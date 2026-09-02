@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { validateUrl, generateId, hostnameFromUrl, isSafeFaviconUrl, normalizeUrl, containsUrl } from "./utils";
+import {
+  validateUrl, generateId, hostnameFromUrl, isSafeFaviconUrl,
+  normalizeUrl, containsUrl, dedupeByUrl, newUrlsOnly,
+} from "./utils";
 
 describe("validateUrl", () => {
   it("accepts http URL", () => expect(validateUrl("http://example.com")).toBe(true));
@@ -53,4 +56,60 @@ describe("containsUrl (#13)", () => {
     expect(containsUrl(links, "https://other.com")).toBe(false));
   it("treats distinct hashes as distinct", () =>
     expect(containsUrl([{ url: "https://a.com/#/x" }], "https://a.com/#/y")).toBe(false));
+});
+
+describe("dedupeByUrl (#2)", () => {
+  it("keeps the first of a set of entries that normalize to the same URL", () => {
+    const links = [{ url: "https://a.com" }, { url: "https://www.a.com/" }, { url: "https://b.com" }];
+    expect(dedupeByUrl(links)).toEqual([{ url: "https://a.com" }, { url: "https://b.com" }]);
+  });
+  it("keeps every entry when none collide", () => {
+    const links = [{ url: "https://a.com" }, { url: "https://b.com" }];
+    expect(dedupeByUrl(links)).toEqual(links);
+  });
+});
+
+describe("newUrlsOnly (#2)", () => {
+  it("drops incoming links that already exist under normalized comparison", () => {
+    const existing = [{ url: "https://a.com/" }];
+    const incoming = [{ url: "https://www.a.com" }, { url: "https://b.com" }];
+    expect(newUrlsOnly(existing, incoming)).toEqual([{ url: "https://b.com" }]);
+  });
+  it("keeps everything when existing is empty", () => {
+    const incoming = [{ url: "https://a.com" }];
+    expect(newUrlsOnly([], incoming)).toEqual(incoming);
+  });
+});
+
+// The dedup rule used to be expressed three ways (containsUrl, and two hand-rolled
+// SettingsView.svelte shapes); this pins all three call shapes to the one rule so they can
+// never quietly diverge again. #2.
+describe("the dedup rule agrees across every call shape (#2)", () => {
+  const variants = [
+    "https://A.com/x/",       // host case + trailing slash
+    "https://www.a.com/x",    // www.
+    "https://a.com/x",        // canonical
+  ];
+  const distinct = "https://a.com/y";
+
+  it("normalizeUrl collapses every variant to the same key", () => {
+    const keys = new Set(variants.map(normalizeUrl));
+    expect(keys.size).toBe(1);
+  });
+
+  it("containsUrl treats every variant as a match against one stored link", () => {
+    const links = [{ url: variants[0] }];
+    for (const v of variants) expect(containsUrl(links, v)).toBe(true);
+    expect(containsUrl(links, distinct)).toBe(false);
+  });
+
+  it("dedupeByUrl collapses a batch of variants to one entry", () => {
+    expect(dedupeByUrl(variants.map(url => ({ url })))).toEqual([{ url: variants[0] }]);
+  });
+
+  it("newUrlsOnly rejects every variant against one existing link", () => {
+    const existing = [{ url: variants[0] }];
+    const incoming = [...variants, distinct].map(url => ({ url }));
+    expect(newUrlsOnly(existing, incoming)).toEqual([{ url: distinct }]);
+  });
 });

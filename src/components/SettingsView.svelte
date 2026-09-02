@@ -5,7 +5,7 @@
   import { COPY, fmt } from "../lib/copy";
   import { clearAll } from "../storage";
   import { sanitizeLinks } from "../lib/sanitize";
-  import { normalizeUrl } from "../lib/utils";
+  import { dedupeByUrl, newUrlsOnly } from "../lib/utils";
   import { serializeJson, serializeMarkdown, serializeHtml } from "../lib/export";
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import type { SavedLink, SortOrder } from "../types";
@@ -38,17 +38,6 @@
   }
 
   // ── Import ────────────────────────────────────────────────
-  // Drop entries within the file that normalize to the same URL, keeping the first. #4
-  function dedupeByUrl(links: SavedLink[]): SavedLink[] {
-    const seen = new Set<string>();
-    return links.filter(l => {
-      const key = normalizeUrl(l.url);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
   // Route through the store's replaceLinks so import gets the same write-before-swap AND
   // sync-quota-downgrade handling as every other write path (no silent sync-off). #5/D1
   async function applyImport(items: SavedLink[], successToast: string): Promise<void> {
@@ -80,8 +69,7 @@
       }
 
       const deduped = dedupeByUrl(valid); // collapse repeats within the file too #4
-      const existing = new Set(linksState.items.map(l => normalizeUrl(l.url)));
-      const newOnes = deduped.filter(l => !existing.has(normalizeUrl(l.url)));
+      const newOnes = newUrlsOnly(linksState.items, deduped);
       const skipped = (valid.length - newOnes.length) + invalidCount;
       await applyImport(
         [...linksState.items, ...newOnes],

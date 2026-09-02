@@ -41,6 +41,34 @@ export function containsUrl(links: readonly { url: string }[], url: string): boo
 }
 
 /**
+ * Drop entries within `links` that normalize to the same URL, keeping the first
+ * occurrence of each. Used when importing a file that may itself contain repeats. #4/#2.
+ */
+export function dedupeByUrl<T extends { url: string }>(links: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return links.filter(l => {
+    const key = normalizeUrl(l.url);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * The subset of `incoming` whose URL isn't already present (under normalized comparison)
+ * in `existing`. Precomputes `existing`'s normalized set once, unlike containsUrl, which
+ * re-normalizes the whole list on every call — for a merge import, where every incoming
+ * link needs a check, that's O(n) rather than O(n·m). #4/#2.
+ */
+export function newUrlsOnly<T extends { url: string }>(
+  existing: readonly { url: string }[],
+  incoming: readonly T[],
+): T[] {
+  const seen = new Set(existing.map(l => normalizeUrl(l.url)));
+  return incoming.filter(l => !seen.has(normalizeUrl(l.url)));
+}
+
+/**
  * Whether a favicon URL is safe to load in an <img>. Allows only `https:` and
  * self-contained `data:image/...` URIs. Rejects `http:` (a plain-text request that can
  * act as a tracking beacon on popup open), `javascript:`, and anything else — those fall
