@@ -140,18 +140,25 @@ export async function focusFirstOption(
 }
 
 /**
- * While a popover is open, call `handler` on scroll or resize so it never floats
- * detached from its trigger. Every current caller closes the popover rather than
- * repositioning it (C2) -- simpler than re-computing placement mid-scroll, and a
- * closed menu never looks pinned-wrong. Scroll uses capture (true) because scroll
- * events don't bubble and the usual scroller is the popup's inner list, not the
- * window. Returns a disposer that removes both listeners.
+ * While a popover is open, call `handler` on scroll so it never floats detached from
+ * its trigger. Every current caller closes the popover rather than repositioning it
+ * (C2) -- simpler than re-computing placement mid-scroll, and a closed menu never
+ * looks pinned-wrong. Scroll uses capture (true) because scroll events don't bubble
+ * and the usual scroller is the popup's inner list, not the window. Returns a
+ * disposer that removes the listener.
+ *
+ * Deliberately NOT listening for `resize`: a Chrome extension popup has no user
+ * drag-to-resize affordance, so a `resize` event there only ever means Chrome's own
+ * popup auto-sizing reacting to a content change -- including, confirmed by testing
+ * in an actual popup, the popover's own panel becoming visible. Closing on that
+ * self-triggered resize closed every popover within ~100ms of it opening, before it
+ * was ever visible to the user. `resize` genuinely mattering (a real browser tab
+ * hosting this code) isn't a case this project has, so there's no live behaviour
+ * this drops -- only the self-closing bug.
  */
 export function trackViewport(handler: () => void): () => void {
   window.addEventListener("scroll", handler, true);
-  window.addEventListener("resize", handler);
   return () => {
     window.removeEventListener("scroll", handler, true);
-    window.removeEventListener("resize", handler);
   };
 }

@@ -170,28 +170,35 @@ describe("focusFirstOption", () => {
 });
 
 describe("trackViewport", () => {
-  it("listens to scroll (capture) + resize and the disposer removes both", () => {
+  it("listens to scroll (capture) and the disposer removes it", () => {
     const add = vi.spyOn(window, "addEventListener");
     const remove = vi.spyOn(window, "removeEventListener");
     const handler = vi.fn();
     const stop = trackViewport(handler);
     expect(add).toHaveBeenCalledWith("scroll", handler, true);
-    expect(add).toHaveBeenCalledWith("resize", handler);
     stop();
     expect(remove).toHaveBeenCalledWith("scroll", handler, true);
-    expect(remove).toHaveBeenCalledWith("resize", handler);
     add.mockRestore();
     remove.mockRestore();
   });
 
-  it("invokes the handler on scroll and resize, and stops after dispose", () => {
+  it("invokes the handler on scroll, and stops after dispose", () => {
     const handler = vi.fn();
     const stop = trackViewport(handler);
     window.dispatchEvent(new Event("scroll"));
-    window.dispatchEvent(new Event("resize"));
-    expect(handler).toHaveBeenCalledTimes(2);
+    expect(handler).toHaveBeenCalledTimes(1);
     stop();
+    window.dispatchEvent(new Event("scroll"));
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT listen for resize -- a Chrome extension popup has no user resize, only its own auto-sizing (#4-live-bug)", () => {
+    const add = vi.spyOn(window, "addEventListener");
+    const handler = vi.fn();
+    trackViewport(handler);
+    expect(add).not.toHaveBeenCalledWith("resize", expect.anything());
     window.dispatchEvent(new Event("resize"));
-    expect(handler).toHaveBeenCalledTimes(2);
+    expect(handler).not.toHaveBeenCalled();
+    add.mockRestore();
   });
 });

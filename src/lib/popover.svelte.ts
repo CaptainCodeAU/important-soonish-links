@@ -2,7 +2,7 @@
 // ColorFilterMenu, and -- partially, see ColorPicker.svelte's own comments -- ColorPicker).
 // popover.ts holds the pure leaf functions (placement math, outside-click test, roving-focus
 // key handling); this file is the layer above that was missing: the open/close state, the
-// wiring between those leaves, and the one bug all four menus shared before this existed (see
+// wiring between those leaves, and the two bugs all four menus shared before this existed (see
 // below). Each menu keeps its own markup, roles, aria, and open trigger (hover for ColorPicker,
 // click for the rest) -- only the mechanics below are common.
 
@@ -59,6 +59,13 @@ export interface PopoverController {
  * passed by value, and the helper's own `await tick()` couldn't rescue it. Keyboard focus
  * never entered the menu on open. openMenu() below awaits tick() itself, THEN reads panel()
  * live -- by then bind:this has run -- before focusing into it.
+ *
+ * Also fixes a second, more severe live bug, found only by testing in an actual Chrome
+ * extension popup (jsdom and a plain browser tab both hid it): trackViewport's resize
+ * listener (see its own docstring in popover.ts) was closing every menu within ~100ms of
+ * it opening, before a user could ever see it, because revealing the panel made Chrome's
+ * popup auto-size itself, firing a `resize` event that the close-on-resize logic then
+ * acted on. trackViewport no longer listens for resize at all.
  */
 export function createPopover(opts: PopoverOptions): PopoverController {
   let open = $state(false);
@@ -92,8 +99,9 @@ export function createPopover(opts: PopoverOptions): PopoverController {
     if (returnFocus) opts.anchor()?.focus();
   }
 
-  // Close (not reposition) on scroll/resize, so the panel never floats detached from its
-  // trigger. C2.
+  // Close (not reposition) on scroll, so the panel never floats detached from its
+  // trigger. C2. (trackViewport no longer also listens for resize -- see its own
+  // docstring for why that was actively harmful, not just superfluous, here.)
   $effect(() => {
     if (!open) return;
     return trackViewport(() => { open = false; });
