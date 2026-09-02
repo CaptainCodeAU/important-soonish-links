@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
   import { NOTION_PALETTE } from "../lib/colors";
   import { COLOR_IDS } from "../types";
   import { filtersState, toggleColor, clearColors } from "../store/filters.svelte";
@@ -46,7 +45,6 @@
       style={menu.style}
       bind:this={menuEl}
       onkeydown={menu.onKeydown}
-      transition:fade={{ duration: 120 }}
     >
       <div class="grid">
         {#each COLOR_IDS as color (color)}

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
   import { DEFAULT_TAGS } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
   import { filtersState, toggleTag, clearTags, setTagMatchMode } from "../store/filters.svelte";
@@ -50,7 +49,6 @@
       style={menu.style}
       bind:this={menuEl}
       onkeydown={menu.onKeydown}
-      transition:fade={{ duration: 120 }}
     >
       {#if count >= 2}
         <div class="match-row" role="group" aria-label={COPY.FILTER_MATCH}>

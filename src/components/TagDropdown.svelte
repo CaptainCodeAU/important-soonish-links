@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
   import { DEFAULT_TAGS, TAG_MAP } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
   import { createPopover } from "../lib/popover.svelte";
@@ -54,7 +53,6 @@
     <ul
       class="dropdown" role="listbox" aria-multiselectable="true" aria-label="Card tags"
       tabindex="-1" style={menu.style} bind:this={menuEl} onkeydown={menu.onKeydown}
-      transition:fade={{ duration: 150 }}
     >
       {#each DEFAULT_TAGS as tag (tag.id)}
         {@const on = values.includes(tag.id)}
