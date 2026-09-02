@@ -2,73 +2,42 @@
   import { fade } from "svelte/transition";
   import { DEFAULT_TAGS, TAG_MAP } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
-  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption, trackViewport } from "../lib/popover";
+  import { createPopover } from "../lib/popover.svelte";
   import type { TagId } from "../types";
 
   let { values, onToggle }: { values: TagId[]; onToggle: (t: TagId) => void } = $props();
-  let open = $state(false);
   let dropEl: HTMLElement | undefined = $state();
   let triggerEl: HTMLElement | undefined = $state();
   let menuEl: HTMLElement | undefined = $state();
-  let menuStyle = $state("");
 
   const hasTags = $derived(values.length > 0);
   // Trigger is colored by the first tag; the tooltip/aria-label lists them all.
   const accent = $derived(hasTags ? NOTION_PALETTE[TAG_MAP[values[0]].accentColor].solid : undefined);
   const labels = $derived(hasTags ? values.map(t => TAG_MAP[t].label).join(", ") : "Add tag");
 
-  function reposition() {
-    if (!triggerEl) return;
+  const menu = createPopover({
+    anchor: () => triggerEl,
+    panel: () => menuEl,
     // Prefer opening above (tall menu inside a short popup); fall back to below.
-    const menuHeight = DEFAULT_TAGS.length * 32 + 8;
-    menuStyle = placePopover(triggerEl.getBoundingClientRect(), {
-      placement: "auto-top",
-      offset: 6,
-      panelHeight: menuHeight,
-    });
-  }
-
-  function toggleOpen() {
-    if (open) { open = false; return; }
-    if (!triggerEl) return;
-    reposition();
-    open = true;
-    focusFirstOption(menuEl);
-  }
-
-  // Close the menu on scroll/resize so it never floats detached from its trigger;
-  // the disposer releases the listeners. C2.
-  $effect(() => {
-    if (!open) return;
-    return trackViewport(() => { open = false; });
+    place: () => ({ placement: "auto-top", offset: 6, panelHeight: DEFAULT_TAGS.length * 32 + 8 }),
+    roving: { orientation: "vertical", homeEnd: false },
+    // Outside-click checks the whole wrapper, not just the trigger button.
+    outsideRefs: () => [dropEl, menuEl],
   });
-
-  function close(returnFocus = true) {
-    open = false;
-    if (returnFocus) triggerEl?.focus();
-  }
-
-  function onMenuKeydown(e: KeyboardEvent) {
-    if (rovingKeydown(e, menuEl, { orientation: "vertical", homeEnd: false }) === "close") close();
-  }
-
-  function handleWindowClick(e: MouseEvent) {
-    if (open && clickedOutside(e, [dropEl, menuEl])) open = false;
-  }
 </script>
 
-<svelte:window on:click={handleWindowClick} />
+<svelte:window on:click={menu.onWindowClick} />
 
 <div class="tag-wrap" bind:this={dropEl}>
   <button
     class="tag-trigger"
     class:tagged={hasTags}
     bind:this={triggerEl}
-    onclick={toggleOpen}
+    onclick={menu.toggle}
     style:color={accent}
     aria-label={hasTags ? `Tags: ${labels}` : "Add tag"}
     title={labels}
-    aria-expanded={open}
+    aria-expanded={menu.open}
     aria-haspopup="listbox"
   >
     <!-- Fixed-size icon so the title column never shifts. Filled + colored (by first
@@ -81,10 +50,10 @@
       <line x1="7" y1="7" x2="7.01" y2="7"/>
     </svg>
   </button>
-  {#if open}
+  {#if menu.open}
     <ul
       class="dropdown" role="listbox" aria-multiselectable="true" aria-label="Card tags"
-      tabindex="-1" style={menuStyle} bind:this={menuEl} onkeydown={onMenuKeydown}
+      tabindex="-1" style={menu.style} bind:this={menuEl} onkeydown={menu.onKeydown}
       transition:fade={{ duration: 150 }}
     >
       {#each DEFAULT_TAGS as tag (tag.id)}

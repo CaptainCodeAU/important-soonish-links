@@ -140,10 +140,12 @@ export async function focusFirstOption(
 }
 
 /**
- * While a popover is open, keep it pinned to its trigger: re-run `handler` (which
- * recomputes placement) on scroll or resize. Scroll uses capture (true) because
- * scroll events don't bubble and the usual scroller is the popup's inner list, not
- * the window. Returns a disposer that removes both listeners.
+ * While a popover is open, call `handler` on scroll or resize so it never floats
+ * detached from its trigger. Every current caller closes the popover rather than
+ * repositioning it (C2) -- simpler than re-computing placement mid-scroll, and a
+ * closed menu never looks pinned-wrong. Scroll uses capture (true) because scroll
+ * events don't bubble and the usual scroller is the popup's inner list, not the
+ * window. Returns a disposer that removes both listeners.
  */
 export function trackViewport(handler: () => void): () => void {
   window.addEventListener("scroll", handler, true);

@@ -3,61 +3,32 @@
   import { DEFAULT_TAGS } from "../lib/tags";
   import { NOTION_PALETTE } from "../lib/colors";
   import { filtersState, toggleTag, clearTags, setTagMatchMode } from "../store/filters.svelte";
-  import { placePopover, clickedOutside, rovingKeydown, focusFirstOption, trackViewport } from "../lib/popover";
+  import { createPopover } from "../lib/popover.svelte";
   import { COPY } from "../lib/copy";
 
-  let open = $state(false);
   let triggerEl: HTMLElement | undefined = $state();
   let menuEl: HTMLElement | undefined = $state();
-  let menuStyle = $state("");
 
   const count = $derived(filtersState.activeTags.size);
 
-  function reposition() {
-    if (!triggerEl) return;
-    // The bar sits at the top of the popup, so the menu opens downward with room.
-    menuStyle = placePopover(triggerEl.getBoundingClientRect(), { placement: "bottom", offset: 6 });
-  }
-
-  function toggle() {
-    if (open) { open = false; return; }
-    if (!triggerEl) return;
-    reposition();
-    open = true;
-    // Move focus into the menu so keyboard users can navigate immediately.
-    focusFirstOption(menuEl);
-  }
-
-  // Close the menu on scroll/resize so it never floats detached from its trigger. C2.
-  $effect(() => {
-    if (!open) return;
-    return trackViewport(() => { open = false; });
+  // The bar sits at the top of the popup, so the menu opens downward with room.
+  const menu = createPopover({
+    anchor: () => triggerEl,
+    panel: () => menuEl,
+    place: { placement: "bottom", offset: 6 },
+    roving: { orientation: "vertical", homeEnd: true },
   });
-
-  function close(returnFocus = true) {
-    open = false;
-    if (returnFocus) triggerEl?.focus();
-  }
-
-  // Roving focus across the option rows (Arrow/Home/End), Escape to close.
-  function onMenuKeydown(e: KeyboardEvent) {
-    if (rovingKeydown(e, menuEl, { orientation: "vertical", homeEnd: true }) === "close") close();
-  }
-
-  function handleWindowClick(e: MouseEvent) {
-    if (open && clickedOutside(e, [triggerEl, menuEl])) open = false;
-  }
 </script>
 
-<svelte:window on:click={handleWindowClick} />
+<svelte:window on:click={menu.onWindowClick} />
 
 <div class="wrap">
   <button
     class="trigger"
     class:active={count > 0}
     bind:this={triggerEl}
-    onclick={toggle}
-    aria-expanded={open}
+    onclick={menu.toggle}
+    aria-expanded={menu.open}
     aria-haspopup="listbox"
   >
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -69,16 +40,16 @@
     <span class="caret" aria-hidden="true">▾</span>
   </button>
 
-  {#if open}
+  {#if menu.open}
     <div
       class="menu"
       role="listbox"
       aria-multiselectable="true"
       aria-label="Filter by tag"
       tabindex="-1"
-      style={menuStyle}
+      style={menu.style}
       bind:this={menuEl}
-      onkeydown={onMenuKeydown}
+      onkeydown={menu.onKeydown}
       transition:fade={{ duration: 120 }}
     >
       {#if count >= 2}
