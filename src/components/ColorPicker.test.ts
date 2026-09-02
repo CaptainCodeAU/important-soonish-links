@@ -70,4 +70,28 @@ describe("ColorPicker", () => {
     await tick();
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
+
+  it("moves focus to the selected swatch on open (#1)", async () => {
+    const onChange = vi.fn();
+    render(ColorPicker, { value: "default", onChange });
+    const dot = screen.getByRole("button", { name: /card color/i });
+    await fireEvent.mouseEnter(dot);
+    await tick();
+    const selected = screen.getAllByRole("radio").find(
+      el => el.getAttribute("aria-checked") === "true"
+    );
+    expect(document.activeElement).toBe(selected);
+  });
+
+  it("Escape closes and returns focus to the trigger", async () => {
+    const onChange = vi.fn();
+    render(ColorPicker, { value: "default", onChange });
+    const dot = screen.getByRole("button", { name: /card color/i });
+    await fireEvent.mouseEnter(dot);
+    await tick();
+    const swatches = screen.getAllByRole("radio");
+    await fireEvent.keyDown(swatches[0], { key: "Escape" });
+    await tick();
+    expect(document.activeElement).toBe(dot);
+  });
 });
