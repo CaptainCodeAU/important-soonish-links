@@ -5,6 +5,15 @@ const PLAIN_CHUNK = "isl_links_";    // legacy plain chunks
 const GZ_CHUNK = "isl_gz_";          // current format: gzipped base64 chunks
 const GZ_CHUNK_SIZE = 7000;          // base64 chars per sync item (< 8 KB per-item limit)
 
+/**
+ * True for any key that holds link data: the current gzip chunks and both legacy plain
+ * formats. Single source of truth for "is this a links key" — used both to clear the cloud
+ * and to decide whether an onChanged event should refresh the popup.
+ */
+export function isLinkKey(key: string): boolean {
+  return key === LINKS_KEY || key.startsWith(PLAIN_CHUNK) || key.startsWith(GZ_CHUNK);
+}
+
 // ── base64 <-> bytes ────────────────────────────────────────
 function bytesToBase64(bytes: Uint8Array): string {
   let bin = "";
@@ -87,9 +96,7 @@ export async function readPersistedLinks(allData: Record<string, unknown>): Prom
 /** Remove every link key (current + legacy formats) from sync storage. */
 export async function clearSyncLinks(): Promise<void> {
   const existing = await chrome.storage.sync.get(null);
-  const keys = Object.keys(existing).filter(
-    (k) => k === LINKS_KEY || k.startsWith(PLAIN_CHUNK) || k.startsWith(GZ_CHUNK),
-  );
+  const keys = Object.keys(existing).filter(isLinkKey);
   if (keys.length > 0) await chrome.storage.sync.remove(keys);
 }
 
@@ -105,6 +112,20 @@ export async function writeSyncLinks(links: SavedLink[]): Promise<void> {
   for (let i = 0; i < b64.length; i += GZ_CHUNK_SIZE) {
     toSet[`${GZ_CHUNK}${idx++}`] = b64.slice(i, i + GZ_CHUNK_SIZE);
   }
-  await clearSyncLinks();
+
+  // Write the complete new payload BEFORE removing anything: clearing first means a torn-down
+  // popup (Chrome kills it on blur) or a rejected set leaves the cloud empty, and with sync on
+  // there is no local copy to fall back to. Any old chunk beyond the new payload is blanked in
+  // the SAME set() — an empty chunk concatenates to nothing, so a reader in the window
+  // reassembles exactly the new list instead of an over-long chunk run.
+  const existing = Object.keys(await chrome.storage.sync.get(null)).filter(isLinkKey);
+  for (const k of existing) {
+    if (k.startsWith(GZ_CHUNK) && !(k in toSet)) toSet[k] = "";
+  }
   await chrome.storage.sync.set(toSet);
+
+  // Now the old formats are provably redundant: drop the blanked tail and any legacy keys.
+  // If this half never runs, the stored state is still correct — it self-heals on next write.
+  const stale = existing.filter((k) => !(k in toSet) || toSet[k] === "");
+  if (stale.length > 0) await chrome.storage.sync.remove(stale);
 }

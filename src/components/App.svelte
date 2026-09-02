@@ -3,6 +3,7 @@
   import { fly } from "svelte/transition";
   import { loadLinks } from "../store/links.svelte";
   import { loadSettings } from "../store/settings.svelte";
+  import { affectedSlices } from "../storage";
   import Header from "./Header.svelte";
   import SearchBar from "./SearchBar.svelte";
   import FilterBar from "./FilterBar.svelte";
@@ -25,18 +26,32 @@
     gearEl?.focus();
   }
 
+  // A storage write can arrive as several onChanged events (a sync write removes the old
+  // chunks then sets the new ones; a downgrade writes local, clears the cloud, then flips
+  // settings). Reloading on the first alone would read a half-written store and blank the
+  // list, so collapse a burst into one reload. Same trailing-debounce shape as
+  // store/search.svelte.ts.
+  const LINKS_RELOAD_DEBOUNCE_MS = 150;
+  let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function scheduleLinksReload() {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => { void loadLinks(); }, LINKS_RELOAD_DEBOUNCE_MS);
+  }
+
   onMount(async () => {
     await Promise.all([loadLinks(), loadSettings()]);
     chrome.runtime.onMessage.addListener((msg) => {
-      if (msg?.type === "link-saved") loadLinks();
+      if (msg?.type === "link-saved") scheduleLinksReload();
     });
-    // Stay fresh when storage changes from elsewhere (context-menu save, another
-    // device's sync). Reload only the affected slice; reloads are read-only, so
-    // reacting to our own writes is harmless and idempotent — no write loop.
+    // Stay fresh when storage changes from elsewhere (context-menu save, another device's
+    // sync). The storage module decides what a change affected — the popup must not guess key
+    // formats it doesn't own. Reloads are read-only, so reacting to our own writes is harmless
+    // and idempotent — no write loop.
     chrome.storage.onChanged.addListener((changes) => {
-      const keys = Object.keys(changes);
-      if (keys.some(k => k === "isl_links" || k.startsWith("isl_links_"))) loadLinks();
-      if (keys.includes("isl_settings")) loadSettings();
+      const affected = affectedSlices(changes);
+      if (affected.links) scheduleLinksReload();
+      if (affected.settings) void loadSettings();
     });
   });
 </script>

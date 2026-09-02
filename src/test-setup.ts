@@ -3,6 +3,17 @@ import { cleanup } from "@testing-library/svelte";
 
 afterEach(cleanup);
 
+type StorageChangeListener = (changes: Record<string, unknown>, areaName: string) => void;
+
+const changeListeners: StorageChangeListener[] = [];
+
+/** Fire a fake chrome.storage.onChanged event so tests can drive real listeners. */
+export function dispatchStorageChange(changes: Record<string, unknown>, areaName = "sync"): void {
+  for (const fn of [...changeListeners]) fn(changes, areaName);
+}
+
+afterEach(() => { changeListeners.length = 0; });
+
 // jsdom doesn't implement the Web Animations API, so Svelte's `fade`/`fly`
 // transitions throw "element.animate is not a function" as an uncaught error
 // during component tests. Stub it to a no-op Animation so transitions are inert
@@ -54,7 +65,17 @@ const local = makeStorageArea();
 const sync = Object.assign(makeStorageArea(), { QUOTA_BYTES: 102400 });
 
 (globalThis as Record<string, unknown>).chrome = {
-  storage: { local, sync, onChanged: { addListener: () => {}, removeListener: () => {} } },
+  storage: {
+    local,
+    sync,
+    onChanged: {
+      addListener: (fn: StorageChangeListener) => { changeListeners.push(fn); },
+      removeListener: (fn: StorageChangeListener) => {
+        const i = changeListeners.indexOf(fn);
+        if (i >= 0) changeListeners.splice(i, 1);
+      },
+    },
+  },
   runtime: {
     onInstalled: { addListener: () => {} },
     onMessage: { addListener: () => {} },

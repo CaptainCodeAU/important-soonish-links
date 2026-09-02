@@ -1,7 +1,7 @@
 import type { SavedLink, AppSettings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 import { CURRENT_SCHEMA_VERSION } from "./migrations";
-import { readPersistedLinks, writeSyncLinks, clearSyncLinks } from "./sync";
+import { readPersistedLinks, writeSyncLinks, clearSyncLinks, isLinkKey } from "./sync";
 import { sanitizeLinks } from "../lib/sanitize";
 
 const STORAGE_KEYS = {
@@ -133,4 +133,28 @@ export async function disableSyncMigration(): Promise<void> {
 export async function clearAll(): Promise<void> {
   await chrome.storage.local.clear();
   await chrome.storage.sync.clear();
+}
+
+// ── Change classification ───────────────────────────────────
+
+export interface AffectedSlices {
+  /** A links key changed — current gzip chunks or either legacy plain format. */
+  links: boolean;
+  /** The settings key changed. */
+  settings: boolean;
+}
+
+/**
+ * Which data slices a `chrome.storage.onChanged` payload touched. The storage module owns
+ * every key format (plain, plain-chunked, gzip-chunked), so callers react to *what changed*
+ * instead of pattern-matching key strings they don't own — a popup that guesses the format
+ * silently stops refreshing the moment the format moves on (it did: `isl_gz_*`).
+ *
+ * Deliberately area-agnostic: `readLinks()` re-resolves local vs sync itself, and the
+ * quota-downgrade path writes local links while sync is still nominally on, so filtering on
+ * `areaName` would drop changes that do matter.
+ */
+export function affectedSlices(changes: Record<string, unknown>): AffectedSlices {
+  const keys = Object.keys(changes);
+  return { links: keys.some(isLinkKey), settings: keys.includes(STORAGE_KEYS.SETTINGS) };
 }

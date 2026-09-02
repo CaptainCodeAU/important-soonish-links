@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   readSettings, writeSettings, readLinks, writeLinks,
-  enableSyncMigration, disableSyncMigration,
+  enableSyncMigration, disableSyncMigration, affectedSlices,
 } from "./index";
-import { readPersistedLinks, writeSyncLinks } from "./sync";
+import { readPersistedLinks, writeSyncLinks, clearSyncLinks } from "./sync";
 import { DEFAULT_SETTINGS } from "../types";
 import type { SavedLink } from "../types";
 
@@ -147,5 +147,87 @@ describe("legacy settings normalization (A7)", () => {
     const s = await readSettings();
     expect(s.syncMode).toBe("links-only");
     expect(s.showBadgeCount).toBe(true);
+  });
+});
+
+describe("affectedSlices (#4)", () => {
+  it("flags links for the current gzipped sync chunks", () => {
+    expect(affectedSlices({ isl_gz_0: {} })).toEqual({ links: true, settings: false });
+  });
+
+  it("flags links for the legacy plain key and legacy chunks", () => {
+    expect(affectedSlices({ isl_links: {} })).toEqual({ links: true, settings: false });
+    expect(affectedSlices({ isl_links_3: {} })).toEqual({ links: true, settings: false });
+  });
+
+  it("flags settings for the settings key", () => {
+    expect(affectedSlices({ isl_settings: {} })).toEqual({ links: false, settings: true });
+  });
+
+  it("flags both when a write touched links and settings", () => {
+    expect(affectedSlices({ isl_links: {}, isl_settings: {} })).toEqual({ links: true, settings: true });
+  });
+
+  it("ignores keys the storage module does not own", () => {
+    expect(affectedSlices({ isl_theme: {}, other_ext_key: {} })).toEqual({ links: false, settings: false });
+  });
+
+  it("agrees with the keys clearSyncLinks removes", async () => {
+    await writeSyncLinks([link("1")]);
+    await chrome.storage.sync.set({ isl_links: [link("2")], isl_links_0: [link("3")] });
+    const all = await chrome.storage.sync.get(null);
+    expect(affectedSlices(all).links).toBe(true);
+    await clearSyncLinks();
+    expect(Object.keys(await chrome.storage.sync.get(null))).toEqual([]);
+  });
+});
+
+describe("writeSyncLinks never empties the cloud (#4 — no data loss)", () => {
+  it("keeps the previous cloud copy when the new write is rejected", async () => {
+    await writeSyncLinks([link("1")]);
+    const origSet = chrome.storage.sync.set;
+    (chrome.storage.sync as unknown as { set: unknown }).set = () =>
+      Promise.reject(new Error("QUOTA_BYTES quota exceeded"));
+    try {
+      await expect(writeSyncLinks([link("2")])).rejects.toThrow();
+    } finally {
+      (chrome.storage.sync as unknown as { set: typeof origSet }).set = origSet;
+    }
+    const all = await chrome.storage.sync.get(null);
+    expect(await readPersistedLinks(all)).toEqual([link("1")]);
+  });
+
+  it("a shrinking write is readable at every point in between", async () => {
+    // Seed a fake multi-chunk old payload directly (500 tiny links compress to a single
+    // chunk, which wouldn't exercise the blank-before-remove path). Content doesn't need to
+    // be valid gzip — it must be gone (blanked) by the time a reader sees only the new payload.
+    await chrome.storage.sync.set({ isl_gz_0: "old0", isl_gz_1: "old1", isl_gz_2: "old2" });
+    let midState: Record<string, unknown> | undefined;
+    const origRemove = chrome.storage.sync.remove;
+    (chrome.storage.sync as unknown as { remove: unknown }).remove = async (keys: string | string[]) => {
+      midState = await chrome.storage.sync.get(null);
+      return (origRemove as (keys: string | string[]) => Promise<void>)(keys);
+    };
+    try {
+      await writeSyncLinks([link("1")]);
+    } finally {
+      (chrome.storage.sync as unknown as { remove: typeof origRemove }).remove = origRemove;
+    }
+    expect(midState).toBeDefined();
+    expect(await readPersistedLinks(midState!)).toEqual([link("1")]);
+  });
+
+  it("drops legacy keys and stale chunks once the new payload is stored", async () => {
+    const many: SavedLink[] = Array.from({ length: 500 }, (_, i) => link(`link-number-${i}`));
+    await writeSyncLinks(many);
+    await chrome.storage.sync.set({ isl_links: [link("legacy")], isl_links_0: [link("legacy2")] });
+    await writeSyncLinks([link("1")]);
+    const all = await chrome.storage.sync.get(null);
+    expect(all["isl_links"]).toBeUndefined();
+    expect(all["isl_links_0"]).toBeUndefined();
+    for (const [k, v] of Object.entries(all)) {
+      if (k.startsWith("isl_gz_")) expect(v).not.toBe("");
+    }
+    expect(await readPersistedLinks(all)).toEqual([link("1")]);
   });
 });
