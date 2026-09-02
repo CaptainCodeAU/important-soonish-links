@@ -20,6 +20,13 @@ export interface PopoverOptions {
   /** Roving-focus options for keyboard nav inside the panel; also supplies focusFirstOption's selector. */
   roving?: RovingOptions;
   /**
+   * Selector for the element openMenu() focuses, if it should be narrower than
+   * roving.selector -- e.g. ColorPicker wants the currently-*selected* swatch, not simply
+   * the first one, so it passes `[role=radio][aria-checked="true"]`. Defaults to
+   * roving.selector (or focusFirstOption's own default, "[role=option]").
+   */
+  focusOnOpen?: string;
+  /**
    * Elements outside-click must also treat as "inside" the popover, beyond anchor()/panel() --
    * e.g. a wrapper div distinct from the trigger button. Defaults to [anchor(), panel()].
    */
@@ -71,7 +78,7 @@ export function createPopover(opts: PopoverOptions): PopoverController {
     // Let the panel actually mount before touching it -- reading opts.panel() here
     // synchronously would still return the pre-open value, which is the bug above.
     await tick();
-    void focusFirstOption(opts.panel(), opts.roving?.selector);
+    void focusFirstOption(opts.panel(), opts.focusOnOpen ?? opts.roving?.selector);
   }
 
   function toggle() {

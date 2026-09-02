@@ -1,89 +1,77 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { NOTION_PALETTE } from "../lib/colors";
-  import { placePopover, clickedOutside, trackViewport } from "../lib/popover";
+  import { createPopover } from "../lib/popover.svelte";
   import { COLOR_IDS } from "../types";
   import type { ColorId } from "../types";
 
   let { value, onChange }: { value: ColorId; onChange: (c: ColorId) => void } = $props();
-  let open = $state(false);
   let pickerEl: HTMLElement | undefined = $state();
   let dotEl: HTMLElement | undefined = $state();
   let swatchesEl: HTMLElement | undefined = $state();
-  let swatchStyle = $state("");
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
   let reopenSuppressed = false;
 
-  function handleKeydown(e: KeyboardEvent, color: ColorId, idx: number) {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(color); }
-    if (e.key === "ArrowRight") { e.preventDefault(); focusSwatch(idx + 1); }
-    if (e.key === "ArrowLeft")  { e.preventDefault(); focusSwatch(idx - 1); }
-    // Escape closes and returns focus to the dot, consistent with the other menus. The
-    // flag stops the dot's onfocus from immediately reopening it. N2.
+  // Opens on hover/focus rather than click, uses radiogroup/radio rather than
+  // listbox/option, and has its own hover-intent close timer below -- genuinely
+  // different from the other three menus, so it keeps its own markup and open
+  // trigger. It shares the controller for placement, outside-click, and
+  // viewport-tracking close, and gains roving-focus keyboard nav (Home/End
+  // included, previously Left/Right only) and Escape-closes-the-container instead
+  // of Escape-per-swatch.
+  const menu = createPopover({
+    anchor: () => dotEl,
+    panel: () => swatchesEl,
+    place: { placement: "auto-bottom", offset: 4, panelHeight: 40 },
+    roving: { selector: "[role=radio]", orientation: "horizontal" },
+    // Focus the currently-selected swatch on open, not simply the first one --
+    // matching the roving tabindex below (only the selected radio is tabbable).
+    focusOnOpen: '[role=radio][aria-checked="true"]',
+    // Outside-click checks the whole wrapper and the panel, not just the dot.
+    outsideRefs: () => [pickerEl, swatchesEl],
+  });
+
+  function handleKeydown(e: KeyboardEvent, color: ColorId) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(color); return; }
     if (e.key === "Escape") {
       e.preventDefault();
-      open = false;
+      // Suppress the re-open that focusing the dot would otherwise trigger via onfocus. N2.
       reopenSuppressed = true;
-      dotEl?.focus();
+      menu.close();
       reopenSuppressed = false;
+      return;
     }
+    menu.onKeydown(e);
   }
 
-  function focusSwatch(idx: number) {
-    const swatches = swatchesEl?.querySelectorAll<HTMLElement>("[role=radio]");
-    if (!swatches) return;
-    const clamped = Math.max(0, Math.min(idx, swatches.length - 1));
-    swatches[clamped]?.focus();
-  }
-
-  function select(color: ColorId) { onChange(color); open = false; }
+  function select(color: ColorId) { onChange(color); menu.close({ returnFocus: false }); }
 
   function scheduleClose() {
-    closeTimer = setTimeout(() => { open = false; }, 80);
+    closeTimer = setTimeout(() => menu.close({ returnFocus: false }), 80);
   }
 
   function cancelClose() {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = undefined; }
   }
 
-  function reposition() {
-    if (!dotEl) return;
-    swatchStyle = placePopover(dotEl.getBoundingClientRect(), {
-      placement: "auto-bottom",
-      offset: 4,
-      panelHeight: 40,
-    });
-  }
+  onDestroy(cancelClose);
 
   function openPicker() {
-    // Suppress the re-open that Escape's dotEl.focus() would otherwise trigger — the dot
+    // Suppress the re-open that Escape's dotEl.focus() would otherwise trigger -- the dot
     // opens on focus, so returning focus to it after Escape must not reopen the menu. N2.
     if (reopenSuppressed) return;
     cancelClose();
-    if (!dotEl) return;
-    reposition();
-    open = true;
-  }
-
-
-  function handleWindowClick(e: MouseEvent) {
-    if (open && clickedOutside(e, [pickerEl, swatchesEl])) open = false;
+    void menu.openMenu();
   }
 
   function handleFocusOut(e: FocusEvent) {
-    // Tab away from the whole picker closes it (and releases the scroll listener
-    // below, which opens on dot focus but has no blur-close otherwise). C2 review.
-    if (!pickerEl?.contains(e.relatedTarget as Node)) open = false;
+    // Tab away from the whole picker closes it (and releases the scroll listener,
+    // which opens on dot focus but has no blur-close otherwise). C2 review.
+    if (!pickerEl?.contains(e.relatedTarget as Node)) menu.close({ returnFocus: false });
   }
-
-  // Close the picker on scroll/resize so it never floats detached from its dot;
-  // the disposer releases the listeners. C2.
-  $effect(() => {
-    if (!open) return;
-    return trackViewport(() => { open = false; });
-  });
 </script>
 
-<svelte:window on:click={handleWindowClick} />
+<svelte:window on:click={menu.onWindowClick} />
 
 <div class="color-wrap" bind:this={pickerEl} onfocusout={handleFocusOut}>
   <button
@@ -94,19 +82,20 @@
     onmouseleave={scheduleClose}
     onfocus={openPicker}
     aria-label="Card color: {NOTION_PALETTE[value].label}"
-    aria-expanded={open}
+    aria-expanded={menu.open}
   ></button>
-  {#if open}
+  {#if menu.open}
     <div
       class="swatches"
       role="radiogroup"
       aria-label="Card color"
-      style={swatchStyle}
+      tabindex="-1"
+      style={menu.style}
       bind:this={swatchesEl}
       onmouseenter={cancelClose}
       onmouseleave={scheduleClose}
     >
-      {#each COLOR_IDS as color, i (color)}
+      {#each COLOR_IDS as color (color)}
         <button
           class="swatch"
           style:background={NOTION_PALETTE[color].solid}
@@ -114,7 +103,7 @@
           aria-checked={color === value}
           aria-label={NOTION_PALETTE[color].label}
           onclick={() => select(color)}
-          onkeydown={(e) => handleKeydown(e, color, i)}
+          onkeydown={(e) => handleKeydown(e, color)}
           tabindex={color === value ? 0 : -1}
         ></button>
       {/each}
