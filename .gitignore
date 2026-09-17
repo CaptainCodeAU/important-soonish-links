@@ -15,3 +15,6 @@ db_backups/
 # Plans (Claude Code working files)
 Plans/
 .key.pem
+
+# Claude Code local config (machine-specific, not source)
+.claude/
